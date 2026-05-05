@@ -27,9 +27,9 @@
   </template>
   <div id="root"></div>
 
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
   <script type="text/babel" src="tweaks-panel.jsx"></script>
   <script type="text/babel" src="supabase-client.jsx"></script>
@@ -44,12 +44,22 @@
     }/*EDITMODE-END*/;
 
     function getRoute() {
-      const h = window.location.hash.replace('#','').replace('/','');
+      const clean = (value) => (value || '').toLowerCase().replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '');
+      const pathParts = clean(window.location.pathname).split('/').filter(Boolean);
+      const path = pathParts[pathParts.length - 1] || '';
+      const h = clean(window.location.hash);
       const q = new URLSearchParams(window.location.search);
-      if (h === 'admin' || q.has('admin')) return 'admin';
-      if (q.has('ranking')) return 'ranking';
-      if (q.has('config')) return 'config';
+
+      if (path === 'admin' || h === 'admin' || q.has('admin')) return 'admin';
+      if (path === 'ranking' || h === 'ranking' || q.has('ranking')) return 'ranking';
+      if (path === 'config' || h === 'config' || q.has('config')) return 'config';
       return 'app';
+    }
+
+    function goTo(route) {
+      const target = route === 'app' ? '/' : '/' + route;
+      window.history.pushState(null, '', target);
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
 
     function App() {
@@ -137,18 +147,18 @@
       if (route === 'admin') {
         if (!adminOk) return <window.LDAdminGate theme={theme} onUnlock={() => setAdminOk(true)} />;
         return <window.LDDashboard theme={theme} players={players} matches={matches} games={games}
-                  onLogout={() => { setAdminOk(false); window.location.search = ''; }} />;
+                  onLogout={() => { setAdminOk(false); goTo('app'); }} />;
       }
       if (route === 'config') {
         return <window.LDSupabase theme={theme} onChanged={refresh}
-                  onClose={() => { window.location.search = ''; }} />;
+                  onClose={() => goTo('app')} />;
       }
       if (route === 'ranking') {
         // Ranking público en formato móvil
         return (
           <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: theme.bg }}>
             <window.LDMobile.MobileRanking theme={theme} players={players}
-              onBack={() => { window.location.search = ''; }} />
+              onBack={() => goTo('app')} />
           </div>
         );
       }
@@ -169,10 +179,10 @@
             </TweakSection>
             <TweakSection title="Rutas">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-                <a href="?" style={{ color: '#a82a1f' }}>App de jugadores</a>
-                <a href="?admin" style={{ color: '#a82a1f' }}>Dashboard /admin</a>
-                <a href="?ranking" style={{ color: '#a82a1f' }}>Ranking público</a>
-                <a href="?config" style={{ color: '#a82a1f' }}>Configurar Supabase</a>
+                <a href="/" style={{ color: '#a82a1f' }}>App de jugadores</a>
+                <a href="/admin" style={{ color: '#a82a1f' }}>Dashboard /admin</a>
+                <a href="/ranking" style={{ color: '#a82a1f' }}>Ranking público</a>
+                <a href="/config" style={{ color: '#a82a1f' }}>Configurar Supabase</a>
               </div>
             </TweakSection>
           </TweaksPanel>

@@ -707,7 +707,7 @@ function MobileRanking({ theme, players, onBack }) {
             Comparte el ranking
           </div>
           <div style={{ fontFamily: TT.mono, fontSize: 12, color: theme.ink, wordBreak: 'break-all' }}>
-            ?ranking
+            {window.location.origin + '/ranking'}
           </div>
         </div>
       </div>

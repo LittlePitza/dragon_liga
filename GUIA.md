@@ -90,10 +90,12 @@ Por defecto, la app usa datos demo en memoria — al recargar, vuelve al estado 
 
 | URL | Para quién |
 |---|---|
-| `?` (raíz) | Jugadores — app móvil |
-| `?admin` | Dueño — dashboard |
-| `?ranking` | Público — ranking compartible |
-| `?config` | Conectar Supabase |
+| `/` | Jugadores — app móvil |
+| `/admin` | Dueño — dashboard |
+| `/ranking` | Público — ranking compartible |
+| `/config` | Conectar Supabase |
+
+También siguen funcionando las versiones antiguas con query: `?admin`, `?ranking` y `?config`.
 
 ---
 
