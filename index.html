@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>El Dragón · Liga de jugadores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f4ede0; font-family: "Inter Tight", system-ui, sans-serif; height: 100%; }
+  #root { min-height: 100vh; }
+  * { box-sizing: border-box; }
+  /* Scroll bonito en webkit */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d9b35a55; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#15110c"/>
+      <circle cx="50" cy="50" r="32" fill="#a82a1f"/>
+      <text x="50" y="64" font-family="Georgia, serif" font-style="italic" font-size="36" fill="#d9b35a" text-anchor="middle">D</text>
+    </svg>
+  </template>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="supabase-client.jsx"></script>
+  <script type="text/babel" src="ui-tokens.jsx"></script>
+  <script type="text/babel" src="mobile-screens.jsx"></script>
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="supabase-config.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "mode": "light"
+    }/*EDITMODE-END*/;
+
+    function getRoute() {
+      const h = window.location.hash.replace('#','').replace('/','');
+      const q = new URLSearchParams(window.location.search);
+      if (h === 'admin' || q.has('admin')) return 'admin';
+      if (q.has('ranking')) return 'ranking';
+      if (q.has('config')) return 'config';
+      return 'app';
+    }
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const theme = window.LDUI.useTheme(tweaks.mode);
+      const [route, setRoute] = React.useState(getRoute());
+      const [adminOk, setAdminOk] = React.useState(false);
+
+      const [games, setGames] = React.useState([]);
+      const [players, setPlayers] = React.useState([]);
+      const [matches, setMatches] = React.useState([]);
+      const [badges, setBadges] = React.useState([]);
+      const [reloadKey, setReloadKey] = React.useState(0);
+
+      React.useEffect(() => {
+        Promise.all([
+          window.Api.listGames(), window.Api.listPlayers(),
+          window.Api.listMatches(), window.Api.listBadges(),
+        ]).then(([g, p, m, b]) => {
+          setGames(g); setPlayers(p); setMatches(m); setBadges(b);
+        });
+      }, [reloadKey]);
+
+      React.useEffect(() => {
+        const h = () => setRoute(getRoute());
+        window.addEventListener('hashchange', h);
+        window.addEventListener('popstate', h);
+        return () => { window.removeEventListener('hashchange', h); window.removeEventListener('popstate', h); };
+      }, []);
+
+      React.useEffect(() => {
+        document.body.style.background = theme.bg;
+      }, [theme]);
+
+      const refresh = () => setReloadKey(k => k + 1);
+
+      // ── App móvil ──────────────────────────────────────────
+      function MobileApp() {
+        const M = window.LDMobile;
+        const [user, setUser] = React.useState(() => window.LigaDragon.getStoredUser());
+        const [screen, setScreen] = React.useState(user ? 'home' : 'login');
+        const [activeMatch, setActiveMatch] = React.useState(null);
+
+        const wrap = (children) => (
+          <div style={{
+            maxWidth: 480, margin: '0 auto', minHeight: '100vh',
+            display: 'flex', flexDirection: 'column', background: theme.bg,
+            boxShadow: '0 0 60px rgba(0,0,0,0.06)',
+          }}>{children}</div>
+        );
+
+        if (screen === 'login') return wrap(
+          <M.MobileLogin theme={theme} onLogin={(p) => { setUser(p); setScreen('home'); refresh(); }} />
+        );
+        if (screen === 'home') return wrap(
+          <M.MobileHome theme={theme} user={user} matches={matches} players={players}
+            onNew={() => setScreen('new')}
+            onProfile={() => setScreen('profile')}
+            onCatalog={() => setScreen('catalog')}
+            onRanking={() => setScreen('ranking')}
+            onMatch={(m) => { setActiveMatch(m); setScreen('match'); }} />
+        );
+        if (screen === 'new') return wrap(
+          <M.MobileNewMatch theme={theme} user={user} games={games} players={players}
+            onCancel={() => setScreen('home')}
+            onSaved={() => { refresh(); setScreen('home'); }} />
+        );
+        if (screen === 'catalog') return wrap(
+          <M.MobileCatalog theme={theme} games={games} onBack={() => setScreen('home')} />
+        );
+        if (screen === 'profile') return wrap(
+          <M.MobileProfile theme={theme} user={user} players={players} badges={badges} matches={matches}
+            onBack={() => setScreen('home')}
+            onLogout={() => { window.LigaDragon.setStoredUser(null); setUser(null); setScreen('login'); }} />
+        );
+        if (screen === 'ranking') return wrap(
+          <M.MobileRanking theme={theme} players={players} onBack={() => setScreen('home')} />
+        );
+        if (screen === 'match' && activeMatch) return wrap(
+          <M.MobileMatchDetail theme={theme} match={activeMatch} onBack={() => setScreen('home')} />
+        );
+      }
+
+      // ── Routing ────────────────────────────────────────────
+      if (route === 'admin') {
+        if (!adminOk) return <window.LDAdminGate theme={theme} onUnlock={() => setAdminOk(true)} />;
+        return <window.LDDashboard theme={theme} players={players} matches={matches} games={games}
+                  onLogout={() => { setAdminOk(false); window.location.search = ''; }} />;
+      }
+      if (route === 'config') {
+        return <window.LDSupabase theme={theme} onChanged={refresh}
+                  onClose={() => { window.location.search = ''; }} />;
+      }
+      if (route === 'ranking') {
+        // Ranking público en formato móvil
+        return (
+          <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+            <window.LDMobile.MobileRanking theme={theme} players={players}
+              onBack={() => { window.location.search = ''; }} />
+          </div>
+        );
+      }
+      return <MobileApp />;
+    }
+
+    // Tweaks separados para que se apliquen siempre
+    function Root() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      return (
+        <>
+          <App />
+          <TweaksPanel title="Tweaks">
+            <TweakSection title="Apariencia">
+              <TweakRadio label="Modo" value={tweaks.mode}
+                options={[{ value: 'light', label: 'Pergamino' }, { value: 'dark', label: 'Noche' }]}
+                onChange={v => setTweak('mode', v)} />
+            </TweakSection>
+            <TweakSection title="Rutas">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+                <a href="?" style={{ color: '#a82a1f' }}>App de jugadores</a>
+                <a href="?admin" style={{ color: '#a82a1f' }}>Dashboard /admin</a>
+                <a href="?ranking" style={{ color: '#a82a1f' }}>Ranking público</a>
+                <a href="?config" style={{ color: '#a82a1f' }}>Configurar Supabase</a>
+              </div>
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+  </script>
+</body>
+</html>

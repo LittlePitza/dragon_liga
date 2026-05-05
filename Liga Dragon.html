@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Liga Dragón · Registro de partidas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;550;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: "Inter Tight", system-ui, sans-serif; }
+  #root { min-height: 100vh; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#16140f"/>
+      <text x="50" y="62" font-family="Georgia, serif" font-style="italic" font-size="42" fill="#d96b53" text-anchor="middle">D</text>
+    </svg>
+  </template>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel" src="supabase-client.jsx"></script>
+  <script type="text/babel" src="ui-tokens.jsx"></script>
+  <script type="text/babel" src="mobile-screens.jsx"></script>
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="supabase-config.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "mode": "dark"
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const theme = window.LDUI.useTheme(tweaks.mode);
+
+      // Datos
+      const [games, setGames] = React.useState([]);
+      const [players, setPlayers] = React.useState([]);
+      const [matches, setMatches] = React.useState([]);
+      const [badges, setBadges] = React.useState([]);
+      const [reloadKey, setReloadKey] = React.useState(0);
+
+      React.useEffect(() => {
+        Promise.all([
+          window.Api.listGames(),
+          window.Api.listPlayers(),
+          window.Api.listMatches(),
+          window.Api.listBadges(),
+        ]).then(([g, p, m, b]) => {
+          setGames(g); setPlayers(p); setMatches(m); setBadges(b);
+        });
+      }, [reloadKey]);
+
+      // Estado de sesión móvil simulada (cada artboard mantiene su propio nav)
+      const [user, setUser] = React.useState(() => window.LigaDragon.getStoredUser() || {
+        id: 'p1', username: 'mara', display_name: 'Mara', avatar_emoji: '🦊'
+      });
+
+      const refresh = () => setReloadKey(k => k + 1);
+
+      // Cada artboard renderiza una pantalla en estado "fijo" para el design canvas
+      const PhoneFrame = ({ children, dark }) => (
+        <IOSDevice dark={dark} background={theme.bg}>
+          {children}
+        </IOSDevice>
+      );
+
+      // Versiones móviles "navegables" — cada una controla su propio screen
+      const MobileApp = () => {
+        const [screen, setScreen] = React.useState(window.LigaDragon.getStoredUser() ? 'home' : 'login');
+        const [u, setU] = React.useState(window.LigaDragon.getStoredUser() || user);
+
+        const M = window.LDMobile;
+
+        if (screen === 'login')   return <M.MobileLogin theme={theme} onLogin={(p) => { setU(p); setUser(p); setScreen('home'); }} />;
+        if (screen === 'home')    return <M.MobileHome theme={theme} user={u} matches={matches}
+                                            onNew={() => setScreen('new')} onProfile={() => setScreen('profile')} onCatalog={() => setScreen('catalog')} />;
+        if (screen === 'new')     return <M.MobileNewMatch theme={theme} user={u} games={games} players={players}
+                                            onCancel={() => setScreen('home')} onSaved={() => { refresh(); setScreen('home'); }} />;
+        if (screen === 'catalog') return <M.MobileCatalog theme={theme} games={games} onBack={() => setScreen('home')} />;
+        if (screen === 'profile') return <M.MobileProfile theme={theme} user={u} players={players} badges={badges} matches={matches}
+                                            onBack={() => setScreen('home')} onLogout={() => { window.LigaDragon.setStoredUser(null); setScreen('login'); }} />;
+      };
+
+      // Vista interactiva única (full screen) — útil al abrir el artboard en focus
+      return (
+        <DesignCanvas>
+          <DCSection id="users" title="Para los jugadores · móvil"
+            subtitle="Flujo completo. Toca cualquiera para entrar en pantalla completa.">
+
+            <DCArtboard id="m-app" label="App interactiva (todos los pasos)" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <MobileApp />
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="m-login" label="Login casual" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <window.LDMobile.MobileLogin theme={theme} onLogin={() => {}} />
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="m-home" label="Home + feed" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <window.LDMobile.MobileHome theme={theme} user={user} matches={matches}
+                  onNew={() => {}} onProfile={() => {}} onCatalog={() => {}} />
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="m-new1" label="Nueva partida · paso 1" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <window.LDMobile.MobileNewMatch theme={theme} user={user} games={games} players={players}
+                  onCancel={() => {}} onSaved={() => {}} />
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="m-catalog" label="Catálogo de juegos" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <window.LDMobile.MobileCatalog theme={theme} games={games} onBack={() => {}} />
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="m-profile" label="Perfil + logros" width={360} height={760}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                <window.LDMobile.MobileProfile theme={theme} user={user} players={players} badges={badges} matches={matches}
+                  onBack={() => {}} onLogout={() => {}} />
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="owner" title="Para ti · dashboard"
+            subtitle="Vista desktop con ranking, KPIs y tabla de partidas.">
+            <DCArtboard id="d-main" label="Dashboard semanal" width={1200} height={780}>
+              <window.LDDashboard theme={theme} players={players} matches={matches} games={games} badges={badges} />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="setup" title="Conexión a Supabase"
+            subtitle="Pega tu URL y anon key cuando estés listo para datos reales.">
+            <DCArtboard id="setup-1" label="Config + script SQL" width={820} height={780}>
+              <window.LDSupabase theme={theme} onChanged={refresh} />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    function TweaksUI({ tweaks, setTweak }) {
+      return (
+        <TweaksPanel title="Tweaks">
+          <TweakSection title="Apariencia">
+            <TweakRadio label="Modo" value={tweaks.mode}
+              options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
+              onChange={v => setTweak('mode', v)} />
+          </TweakSection>
+          <TweakSection title="Datos">
+            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+              Modo actual: <strong>{window.Api.mode() === 'live' ? 'conectado' : 'demo'}</strong>.
+              Conecta tu proyecto desde el artboard de "Conexión a Supabase".
+            </div>
+          </TweakSection>
+        </TweaksPanel>
+      );
+    }
+
+    // Wrap App so Tweaks live inside the same useTweaks hook tree
+    function Root() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const theme = window.LDUI.useTheme(tweaks.mode);
+
+      // Datos
+      const [games, setGames] = React.useState([]);
+      const [players, setPlayers] = React.useState([]);
+      const [matches, setMatches] = React.useState([]);
+      const [badges, setBadges] = React.useState([]);
+      const [reloadKey, setReloadKey] = React.useState(0);
+
+      React.useEffect(() => {
+        Promise.all([
+          window.Api.listGames(), window.Api.listPlayers(),
+          window.Api.listMatches(), window.Api.listBadges(),
+        ]).then(([g, p, m, b]) => {
+          setGames(g); setPlayers(p); setMatches(m); setBadges(b);
+        });
+      }, [reloadKey]);
+
+      const [user, setUser] = React.useState(() => window.LigaDragon.getStoredUser() || {
+        id: 'p1', username: 'mara', display_name: 'Mara', avatar_emoji: '🦊'
+      });
+      const refresh = () => setReloadKey(k => k + 1);
+
+      const MobileApp = () => {
+        const [screen, setScreen] = React.useState(window.LigaDragon.getStoredUser() ? 'home' : 'login');
+        const [u, setU] = React.useState(window.LigaDragon.getStoredUser() || user);
+        const M = window.LDMobile;
+        if (screen === 'login')   return <M.MobileLogin theme={theme} onLogin={(p) => { setU(p); setUser(p); setScreen('home'); }} />;
+        if (screen === 'home')    return <M.MobileHome theme={theme} user={u} matches={matches}
+                                            onNew={() => setScreen('new')} onProfile={() => setScreen('profile')} onCatalog={() => setScreen('catalog')} />;
+        if (screen === 'new')     return <M.MobileNewMatch theme={theme} user={u} games={games} players={players}
+                                            onCancel={() => setScreen('home')} onSaved={() => { refresh(); setScreen('home'); }} />;
+        if (screen === 'catalog') return <M.MobileCatalog theme={theme} games={games} onBack={() => setScreen('home')} />;
+        if (screen === 'profile') return <M.MobileProfile theme={theme} user={u} players={players} badges={badges} matches={matches}
+                                            onBack={() => setScreen('home')} onLogout={() => { window.LigaDragon.setStoredUser(null); setScreen('login'); }} />;
+      };
+
+      // Apply theme to canvas page background too
+      React.useEffect(() => {
+        document.body.style.background = tweaks.mode === 'dark' ? '#16140f' : '#f6f4ef';
+      }, [tweaks.mode]);
+
+      return (
+        <>
+          <DesignCanvas>
+            <DCSection id="users" title="Para los jugadores · móvil"
+              subtitle="Flujo completo. Pulsa el icono de expandir de un artboard para verlo a pantalla completa.">
+
+              <DCArtboard id="m-app" label="App interactiva (navega entre pantallas)" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <MobileApp />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-login" label="Login casual" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileLogin theme={theme} onLogin={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-home" label="Home + feed" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileHome theme={theme} user={user} matches={matches}
+                    onNew={() => {}} onProfile={() => {}} onCatalog={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-new" label="Nueva partida" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileNewMatch theme={theme} user={user} games={games} players={players}
+                    onCancel={() => {}} onSaved={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-catalog" label="Catálogo" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileCatalog theme={theme} games={games} onBack={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-profile" label="Perfil · stats · logros" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileProfile theme={theme} user={user} players={players} badges={badges} matches={matches}
+                    onBack={() => {}} onLogout={() => {}} />
+                </div>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="owner" title="Para ti · dashboard"
+              subtitle="Vista desktop. Ranking, KPIs y partidas recientes.">
+              <DCArtboard id="d-main" label="Dashboard del propietario" width={1200} height={780}>
+                <window.LDDashboard theme={theme} players={players} matches={matches} games={games} badges={badges} />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="setup" title="Conexión a Supabase"
+              subtitle="Pega tu URL y anon key. Te dejamos el script SQL listo para copiar.">
+              <DCArtboard id="setup-1" label="Configuración + script SQL" width={820} height={780}>
+                <window.LDSupabase theme={theme} onChanged={refresh} />
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection title="Apariencia">
+              <TweakRadio label="Modo" value={tweaks.mode}
+                options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
+                onChange={v => setTweak('mode', v)} />
+            </TweakSection>
+            <TweakSection title="Datos">
+              <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+                Modo: <strong>{window.Api.mode() === 'live' ? 'conectado a Supabase' : 'demo (en memoria)'}</strong>.
+                Para conectar, abre el artboard "Configuración + script SQL".
+              </div>
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+  </script>
+</body>
+</html>
