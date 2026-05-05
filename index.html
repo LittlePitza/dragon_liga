@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>El Dragon · Liga de jugadores</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +17,8 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d9b35a55;border-radius:4px}
+
+.app-version-badge{position:fixed;left:10px;bottom:10px;z-index:9999;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;background:rgba(0,0,0,.65);color:#fff;padding:4px 7px;border-radius:999px;pointer-events:none;opacity:.75}
 </style>
 </head>
 <body>
@@ -27,7 +32,34 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 //  EL DRAGON — App consolidada (produccion)
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = "2026.05.04.1";
+// Version de la app. Cambia este valor en cada deploy importante.
+const APP_VERSION = '2026.05.05.4';
+const APP_BUILD = 'cache-fix-ios';
+
+// Verificador anti-cache para iPhone/Safari.
+// Si VERSION.txt cambia, la app fuerza una recarga limpia una sola vez.
+(function(){
+  try{
+    var current = localStorage.getItem('eldragon_app_version');
+    if(current !== APP_VERSION){
+      localStorage.setItem('eldragon_app_version', APP_VERSION);
+    }
+    fetch('/VERSION.txt?ts=' + Date.now(), {cache:'no-store'})
+      .then(function(r){return r.ok ? r.text() : '';})
+      .then(function(remote){
+        remote = (remote || '').trim();
+        if(remote && remote !== APP_VERSION){
+          var lastReload = localStorage.getItem('eldragon_last_reload_for_version');
+          if(lastReload !== remote){
+            localStorage.setItem('eldragon_last_reload_for_version', remote);
+            window.location.replace(window.location.pathname + '?v=' + encodeURIComponent(remote));
+          }
+        }
+      })
+      .catch(function(){});
+  }catch(err){}
+})();
+
 const e = React.createElement;
 const {useState, useEffect, useMemo, useCallback, useRef} = React;
 
@@ -159,6 +191,12 @@ function menuCard(theme){
 }
 
 // ─── Supabase Client & API ──────────────────────────────────
+// ─── Supabase por defecto ───────────────────────────────────
+// Pega aqui los datos de Supabase para que todos los usuarios entren ya conectados.
+// La anon key es publica por diseno; protege tus datos con RLS en Supabase.
+const DEFAULT_SUPABASE_URL = 'https://hkastiwleddbyugcgmhi.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_ngS9VJxoZG6tkciWkYCFvQ_L9gyzdgI';
+
 var SB_KEY='eldragon_sb_creds',USER_KEY='eldragon_user',ADMIN_KEY='eldragon_admin_pin';
 var _sbLoading=null;
 function loadSupabaseSDK(){
@@ -185,7 +223,16 @@ function loadSupabaseSDK(){
   });
   return _sbLoading;
 }
-function getStoredCreds(){try{return JSON.parse(localStorage.getItem(SB_KEY)||'null')}catch(e){return null}}
+function getStoredCreds(){
+  try{
+    var saved=JSON.parse(localStorage.getItem(SB_KEY)||'null');
+    if(saved&&saved.url&&saved.key)return saved;
+  }catch(e){}
+  if(DEFAULT_SUPABASE_URL&&DEFAULT_SUPABASE_ANON_KEY){
+    return {url:DEFAULT_SUPABASE_URL,key:DEFAULT_SUPABASE_ANON_KEY};
+  }
+  return null;
+}
 function setStoredCreds(c){c?localStorage.setItem(SB_KEY,JSON.stringify(c)):localStorage.removeItem(SB_KEY)}
 function getStoredUser(){try{return JSON.parse(localStorage.getItem(USER_KEY)||'null')}catch(e){return null}}
 function setStoredUser(u){u?localStorage.setItem(USER_KEY,JSON.stringify(u)):localStorage.removeItem(USER_KEY)}
@@ -998,7 +1045,10 @@ function SupabaseConfig({theme,onChanged,onClose}){
       else{setStatus('error')}
     }catch(e2){setStatus('error')}finally{setTesting(false)}
   }
-  function disconnect(){setStoredCreds(null);Api._client=null;setUrl('');setKey('');setStatus('disconnected');onChanged&&onChanged()}
+  function disconnect(){
+    setStoredCreds(null);Api._client=null;setUrl(DEFAULT_SUPABASE_URL||'');setKey(DEFAULT_SUPABASE_ANON_KEY||'');
+    setStatus((DEFAULT_SUPABASE_URL&&DEFAULT_SUPABASE_ANON_KEY)?'connected':'disconnected');onChanged&&onChanged()
+  }
 
   return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',overflow:'auto',background:theme.bg,color:theme.ink,fontFamily:T.sans,padding:'40px 36px'}},
     e('div',{style:{maxWidth:720,margin:'0 auto'}},
@@ -1013,7 +1063,8 @@ function SupabaseConfig({theme,onChanged,onClose}){
       ),
       e('p',{style:{fontSize:14,color:theme.inkSoft,lineHeight:1.55,margin:'16px 0 28px',maxWidth:560}},
         'Pega el ',e('strong',null,'Project URL'),' y la ',e('strong',null,'anon key'),'. Se guardan en ',
-        e('code',{style:{fontFamily:T.mono,fontSize:12,background:theme.chip,padding:'2px 6px',borderRadius:3}},'localStorage'),'.'),
+        e('code',{style:{fontFamily:T.mono,fontSize:12,background:theme.chip,padding:'2px 6px',borderRadius:3}},'localStorage'),'. ',
+        DEFAULT_SUPABASE_URL&&DEFAULT_SUPABASE_ANON_KEY?'Esta app ya trae Supabase configurado por defecto.':''),
       e('div',{style:{padding:'14px 18px',borderRadius:6,marginBottom:24,
         background:status==='connected'?theme.deep:theme.surface,color:status==='connected'?theme.gold:theme.ink,
         border:'1px solid '+(status==='connected'?theme.gold:theme.line),display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}},
@@ -1131,23 +1182,32 @@ function App(){
       display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}},
     mode==='light'?'\u{1F319}':'\u2600\uFE0F');
 
-  var versionBadge=e('div',{style:{position:'fixed',bottom:12,left:12,zIndex:1000,padding:'4px 8px',borderRadius:999,
-      background:theme.surface,color:theme.inkMuted,border:'1px solid '+theme.line,fontFamily:T.mono,fontSize:10,
-      boxShadow:'0 2px 8px rgba(0,0,0,0.12)',opacity:.82,pointerEvents:'none'}},'v'+APP_VERSION);
-
   if(route==='admin'){
-    if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle,versionBadge);
+    if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle);
     return e('div',null,e(Dashboard,{theme:theme,players:players,matches:matches,games:games,
-      onLogout:function(){setAdminOk(false);goTo('app')},onRefresh:refresh}),themeToggle,versionBadge);
+      onLogout:function(){setAdminOk(false);goTo('app')},onRefresh:refresh}),themeToggle);
   }
-  if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle,versionBadge);
+  if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle);
   if(route==='ranking')return e('div',null,
     e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg}},
-      e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle,versionBadge);
-  return e('div',null,e(MobileApp,null),themeToggle,versionBadge);
+      e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle);
+  return e('div',null,e(MobileApp,null),themeToggle);
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script>
+
+<script>
+(function(){
+  window.addEventListener('load', function(){
+    try{
+      var b=document.createElement('div');
+      b.className='app-version-badge';
+      b.textContent='v2026.05.05.3';
+      document.body.appendChild(b);
+    }catch(err){}
+  });
+})();
 </script>
 </body>
 </html>
