@@ -18,6 +18,11 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d9b35a55;border-radius:4px}
 
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
+.loading-spinner{width:32px;height:32px;border:3px solid rgba(0,0,0,.1);border-top-color:#b88420;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(min-width:769px){.dash-mobile-header{display:none !important}.dash-desktop-sidebar{display:flex !important}.dash-wrapper{display:grid !important;grid-template-columns:240px 1fr !important}}
+@media(max-width:768px){.dash-mobile-header{display:flex !important}.dash-desktop-sidebar{display:none !important}.dash-wrapper{display:block !important}.dash-main{padding:20px 16px !important}}
 .app-version-badge{position:fixed;left:10px;bottom:10px;z-index:9999;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;background:rgba(0,0,0,.65);color:#fff;padding:4px 7px;border-radius:999px;pointer-events:none;opacity:.75}
 </style>
 </head>
@@ -33,8 +38,8 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 // ═══════════════════════════════════════════════════════════════
 
 // Version de la app. Cambia este valor en cada deploy importante.
-const APP_VERSION = '2026.05.05.4';
-const APP_BUILD = 'cache-fix-ios';
+const APP_VERSION = '2026.05.05.5';
+const APP_BUILD = 'optimized';
 
 // Verificador anti-cache para iPhone/Safari.
 // Si VERSION.txt cambia, la app fuerza una recarga limpia una sola vez.
@@ -177,6 +182,23 @@ function Divider({theme,style={}}){
   );
 }
 
+
+// ── Loading (P1) ──
+function Loading({theme,text}){
+  return e('div',{className:'loading-wrap',role:'status','aria-label':'Cargando'},
+    e('div',{className:'loading-spinner',style:{borderColor:theme.lineSoft,borderTopColor:theme.gold}}),
+    text&&e('div',{style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft}},text));
+}
+
+// ── Toast (P2: reemplaza alert()) ──
+function Toast({theme,message,onClose}){
+  if(!message)return null;
+  useEffect(function(){var t=setTimeout(onClose,4500);return function(){clearTimeout(t)}},[message]);
+  return e('div',{role:'alert',style:{position:'fixed',bottom:60,left:'50%',transform:'translateX(-50%)',zIndex:2000,
+    background:theme.accent,color:theme.accentInk,fontFamily:T.sans,fontSize:13,fontWeight:600,
+    padding:'12px 20px',borderRadius:6,boxShadow:'0 4px 20px rgba(0,0,0,.3)',maxWidth:'90vw',textAlign:'center'}},message);
+}
+
 // ─── Helpers ────────────────────────────────────────────────
 function fmtDate(iso){
   var d=new Date(iso);
@@ -197,7 +219,7 @@ function menuCard(theme){
 const DEFAULT_SUPABASE_URL = 'https://hkastiwleddbyugcgmhi.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_ngS9VJxoZG6tkciWkYCFvQ_L9gyzdgI';
 
-var SB_KEY='eldragon_sb_creds',USER_KEY='eldragon_user',ADMIN_KEY='eldragon_admin_pin';
+var SB_KEY='eldragon_sb_creds',USER_KEY='eldragon_user',ADMIN_KEY='eldragon_admin_hash';
 var _sbLoading=null;
 function loadSupabaseSDK(){
   if(window.supabase&&window.supabase.createClient)return Promise.resolve(window.supabase);
@@ -541,7 +563,7 @@ function MobileMatchDetail({theme,match,onBack}){
 }
 
 // ─── New Match ──────────────────────────────────────────────
-function MobileNewMatch({theme,user,games,players,onCancel,onSaved}){
+function MobileNewMatch({theme,user,games,players,onCancel,onSaved,onError}){
   var _s=useState(1),step=_s[0],setStep=_s[1];
   var _gq=useState(''),gameQuery=_gq[0],setGameQuery=_gq[1];
   var _g=useState(null),game=_g[0],setGame=_g[1];
@@ -566,7 +588,8 @@ function MobileNewMatch({theme,user,games,players,onCancel,onSaved}){
         duration_min:duration?parseInt(duration):null,difficulty:difficulty||null,
         winner_id:winner,players:participants,notes:notes||null,created_by:user.id});
       onSaved();
-    }catch(e2){alert(e2.message||'Error')}finally{setBusy2(false)}
+    }catch(e2){onError&&onError(e2.message||'Error al guardar');}
+finally{setBusy2(false)}
   }
 
   return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
@@ -778,10 +801,22 @@ function MobileProfile({theme,user,players,badges,matches,onBack,onLogout}){
 function AdminGate({theme,onUnlock}){
   var _p=useState(''),pin=_p[0],setPin=_p[1];
   var _e2=useState(''),err=_e2[0],setErr=_e2[1];
+  var _b=useState(false),busy=_b[0],setBusy=_b[1];
   var stored=localStorage.getItem(ADMIN_KEY);
-  function submit(){
-    if(!stored){if(pin.length<4){setErr('Minimo 4 digitos');return}localStorage.setItem(ADMIN_KEY,pin);onUnlock()}
-    else{if(pin===stored)onUnlock();else setErr('PIN incorrecto')}
+  async function submit(){
+    if(busy)return;setBusy(true);setErr('');
+    try{
+      if(!stored){
+        if(pin.length<4){setErr('Minimo 4 digitos');setBusy(false);return}
+        var h=await hashPin(pin);
+        localStorage.setItem(ADMIN_KEY,h);onUnlock();
+      }else{
+        var h2=await hashPin(pin);
+        if(h2===stored)onUnlock();
+        else setErr('PIN incorrecto');
+      }
+    }catch(x){setErr('Error al verificar')}
+    finally{setBusy(false)}
   }
   return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',background:theme.bg,color:theme.ink,fontFamily:T.sans,
     display:'flex',alignItems:'center',justifyContent:'center',padding:40}},
@@ -794,7 +829,7 @@ function AdminGate({theme,onUnlock}){
         placeholder:'\u2022\u2022\u2022\u2022',autoFocus:true,style:{fontFamily:T.mono,fontSize:22,letterSpacing:6,textAlign:'center'},
         onKeyDown:function(ev){if(ev.key==='Enter')submit()}}),
       err&&e('p',{style:{color:theme.accent,fontSize:13,margin:'12px 0 0'}},err),
-      e(Btn,{theme:theme,variant:'dark',onClick:submit,style:{width:'100%',marginTop:16,padding:'14px'}},stored?'Entrar':'Crear PIN'),
+      e(Btn,{theme:theme,variant:'dark',onClick:submit,style:{width:'100%',marginTop:16,padding:'14px'}},busy?'Verificando\u2026':(stored?'Entrar':'Crear PIN')),
       e('p',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,margin:'16px 0 0'}},
         '\u00BFNo eres el propietario? ',e('a',{href:'/',style:{color:theme.accent}},'Volver a la app')),
     ),
@@ -1013,10 +1048,6 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
   );
 
   return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',background:theme.bg,color:theme.ink,fontFamily:T.sans}},
-    // Inject responsive CSS
-    e('style',null,
-      '@media(min-width:769px){.dash-mobile-header{display:none !important}.dash-desktop-sidebar{display:flex !important}.dash-wrapper{display:grid !important;grid-template-columns:240px 1fr !important}}'+
-      '@media(max-width:768px){.dash-mobile-header{display:flex !important}.dash-desktop-sidebar{display:none !important}.dash-wrapper{display:block !important}.dash-main{padding:20px 16px !important}}'),
     mobileHeader,
     overlay,
     e('div',{className:'dash-wrapper',style:{display:'grid',gridTemplateColumns:'240px 1fr',overflow:'hidden',minHeight:'100vh'}},
@@ -1027,7 +1058,7 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
 }
 
 // ─── Supabase Config ────────────────────────────────────────
-var SCHEMA_SQL='-- Pega esto en Supabase > SQL Editor > New query\n-- (script completo en supabase-schema.sql del proyecto)\n\ncreate table if not exists players (\n  id uuid primary key default gen_random_uuid(),\n  username text unique not null, display_name text,\n  avatar_emoji text default \'\\u{1F409}\', pin_hash text,\n  created_at timestamptz default now()\n);\n\ncreate table if not exists games (\n  id uuid primary key default gen_random_uuid(),\n  name text unique not null, min_players int default 2, max_players int default 4,\n  avg_duration int, category text, available boolean default true,\n  created_at timestamptz default now()\n);\n\ncreate table if not exists matches (\n  id uuid primary key default gen_random_uuid(),\n  game_id uuid not null references games(id),\n  played_at timestamptz default now(), duration_min int,\n  difficulty int check (difficulty between 1 and 5),\n  winner_id uuid references players(id), notes text,\n  created_by uuid references players(id),\n  created_at timestamptz default now()\n);\n\ncreate table if not exists match_players (\n  match_id uuid references matches(id) on delete cascade,\n  player_id uuid references players(id), score int,\n  primary key (match_id, player_id)\n);\n\ncreate or replace view player_stats as\n  select p.id, p.username, p.display_name, p.avatar_emoji,\n    count(distinct mp.match_id) as matches_played,\n    count(distinct case when m.winner_id = p.id then m.id end) as wins,\n    coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes\n  from players p\n  left join match_players mp on mp.player_id = p.id\n  left join matches m on m.id = mp.match_id\n  group by p.id;\n\nalter table players enable row level security;\nalter table games enable row level security;\nalter table matches enable row level security;\nalter table match_players enable row level security;\n\ncreate policy "all" on players for all using (true) with check (true);\ncreate policy "all" on games for all using (true) with check (true);\ncreate policy "all" on matches for all using (true) with check (true);\ncreate policy "all" on match_players for all using (true) with check (true);\n\ninsert into games (name, min_players, max_players, avg_duration, category) values\n  (\'Catan\', 3, 4, 90, \'estrategia\'),\n  (\'Carcassonne\', 2, 5, 45, \'familiar\'),\n  (\'Wingspan\', 1, 5, 70, \'estrategia\'),\n  (\'Codenames\', 4, 8, 20, \'party\'),\n  (\'Azul\', 2, 4, 35, \'familiar\'),\n  (\'Harmonies\', 2, 4, 35, \'familiar\'),\n  (\'Orleans\', 2, 4, 90, \'estrategia\')\non conflict (name) do nothing;';
+var SCHEMA_SQL='-- ════════════════════════════════════════════════════════════════\n--  EL DRAGON BG&G — Esquema Supabase\n--  Cafeteria de juegos de mesa - Registro de partidas\n-- ════════════════════════════════════════════════════════════════\n--  Ejecuta en: Supabase → SQL Editor → New query\n-- ════════════════════════════════════════════════════════════════\n\n-- 1. Jugadores\ncreate table if not exists players (\n  id           uuid primary key default gen_random_uuid(),\n  username     text unique not null,\n  display_name text,\n  avatar_emoji text default \'🐉\',\n  pin_hash     text,\n  created_at   timestamptz default now()\n);\n\n-- 2. Catalogo de juegos\ncreate table if not exists games (\n  id            uuid primary key default gen_random_uuid(),\n  name          text unique not null,\n  min_players   int default 2,\n  max_players   int default 4,\n  avg_duration  int,\n  category      text,\n  available     boolean default true,\n  approved      boolean default true,\n  added_by      uuid references players(id),\n  created_at    timestamptz default now()\n);\n\n-- 3. Partidas\ncreate table if not exists matches (\n  id           uuid primary key default gen_random_uuid(),\n  game_id      uuid not null references games(id),\n  played_at    timestamptz not null default now(),\n  duration_min int,\n  difficulty   int check (difficulty between 1 and 5),\n  winner_id    uuid references players(id),\n  notes        text,\n  created_by   uuid references players(id),\n  created_at   timestamptz default now()\n);\n\n-- 4. Participantes\ncreate table if not exists match_players (\n  match_id  uuid references matches(id) on delete cascade,\n  player_id uuid references players(id),\n  score     int,\n  primary key (match_id, player_id)\n);\n\n-- 5. Logros\ncreate table if not exists badges (\n  id text primary key, name text not null, description text, emoji text default \'🏅\'\n);\ncreate table if not exists player_badges (\n  player_id uuid references players(id) on delete cascade,\n  badge_id  text references badges(id),\n  earned_at timestamptz default now(),\n  primary key (player_id, badge_id)\n);\n\ninsert into badges (id, name, description, emoji) values\n  (\'first_match\', \'Primera partida\',  \'Tu primera cronica\',                      \'🎲\'),\n  (\'first_win\',   \'Primera victoria\', \'Tu primer triunfo en la liga\',            \'🏆\'),\n  (\'marathon\',    \'Maratonista\',      \'Una partida de mas de 3 horas\',           \'⏰\'),\n  (\'explorer\',    \'Explorador\',       \'Probaste 10 juegos diferentes\',           \'🧭\'),\n  (\'regular\',     \'Habitual\',         \'25 partidas registradas\',                 \'☕\'),\n  (\'strategist\',  \'Estratega\',        \'5 victorias en juegos de estrategia\',     \'♟️\')\non conflict (id) do nothing;\n\n-- 6. Vista de stats (solo juegos aprobados cuentan para ranking)\ncreate or replace view player_stats as\n  select\n    p.id, p.username, p.display_name, p.avatar_emoji,\n    count(distinct mp.match_id) as matches_played,\n    count(distinct case when m.winner_id = p.id and g.approved = true then m.id end) as wins,\n    coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes\n  from players p\n  left join match_players mp on mp.player_id = p.id\n  left join matches m on m.id = mp.match_id\n  left join games g on g.id = m.game_id\n  group by p.id;\n\n-- 7. RLS\nalter table players       enable row level security;\nalter table games         enable row level security;\nalter table matches       enable row level security;\nalter table match_players enable row level security;\nalter table badges        enable row level security;\nalter table player_badges enable row level security;\n\ncreate policy "read"   on players       for select using (true);\ncreate policy "insert" on players       for insert with check (true);\ncreate policy "update" on players       for update using (true);\ncreate policy "read"   on games         for select using (true);\ncreate policy "insert" on games         for insert with check (true);\ncreate policy "update" on games         for update using (true);\ncreate policy "read"   on matches       for select using (true);\ncreate policy "insert" on matches       for insert with check (true);\ncreate policy "update" on matches       for update using (true);\ncreate policy "delete" on matches       for delete using (true);\ncreate policy "read"   on match_players for select using (true);\ncreate policy "insert" on match_players for insert with check (true);\ncreate policy "read"   on badges        for select using (true);\ncreate policy "read"   on player_badges for select using (true);\ncreate policy "insert" on player_badges for insert with check (true);\n\n-- 8. Seed: catalogo inicial de El Dragon\ninsert into games (name, min_players, max_players, avg_duration, category) values\n  (\'Catan\',          3, 4, 90, \'estrategia\'),\n  (\'Carcassonne\',    2, 5, 45, \'familiar\'),\n  (\'Wingspan\',       1, 5, 70, \'estrategia\'),\n  (\'Codenames\',      4, 8, 20, \'party\'),\n  (\'Azul\',           2, 4, 35, \'familiar\'),\n  (\'7 Wonders Duel\', 2, 2, 30, \'estrategia\'),\n  (\'Dixit\',          3, 6, 30, \'party\'),\n  (\'Splendor\',       2, 4, 30, \'estrategia\'),\n  (\'Harmonies\',      2, 4, 35, \'familiar\'),\n  (\'Orleans\',        2, 4, 90, \'estrategia\'),\n  (\'Spy Connection\', 2, 4, 45, \'familiar\'),\n  (\'Feed the Kraken\',5, 11, 60, \'party\')\non conflict (name) do nothing;\n';
 
 function SupabaseConfig({theme,onChanged,onClose}){
   var stored=getStoredCreds();
@@ -1123,6 +1154,35 @@ function goTo(route){
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+// ── MobileApp (top-level to preserve state across theme changes) ──
+function MobileApp({theme,games,players,matches,badges,refresh}){
+  var _u=useState(function(){return getStoredUser()}),user=_u[0],setUser=_u[1];
+  var _s=useState(function(){return getStoredUser()?'home':'login'}),screen=_s[0],setScreen=_s[1];
+  var _am=useState(null),activeMatch=_am[0],setActiveMatch=_am[1];
+  var _toast=useState(''),toast=_toast[0],setToast=_toast[1];
+
+  var wrap=function(children){
+    return e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg,boxShadow:'0 0 60px rgba(0,0,0,0.06)'}},
+      children,
+      e(Toast,{theme:theme,message:toast,onClose:function(){setToast('')}}));
+  };
+
+  if(screen==='login')return wrap(e(MobileLogin,{theme:theme,onLogin:function(p){setUser(p);setScreen('home');refresh()}}));
+  if(screen==='home')return wrap(e(MobileHome,{theme:theme,user:user,matches:matches,players:players,
+    onNew:function(){setScreen('new')},onProfile:function(){setScreen('profile')},
+    onCatalog:function(){setScreen('catalog')},onRanking:function(){setScreen('ranking')},
+    onMatch:function(m){setActiveMatch(m);setScreen('match')}}));
+  if(screen==='new')return wrap(e(MobileNewMatch,{theme:theme,user:user,games:games,players:players,
+    onCancel:function(){setScreen('home')},onSaved:function(){refresh();setScreen('home')},
+    onError:function(msg){setToast(msg)}}));
+  if(screen==='catalog')return wrap(e(MobileCatalog,{theme:theme,games:games,onBack:function(){setScreen('home')}}));
+  if(screen==='profile')return wrap(e(MobileProfile,{theme:theme,user:user,players:players,badges:badges,matches:matches,
+    onBack:function(){setScreen('home')},onLogout:function(){setStoredUser(null);setUser(null);setScreen('login')}}));
+  if(screen==='ranking')return wrap(e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){setScreen('home')}}));
+  if(screen==='match'&&activeMatch)return wrap(e(MobileMatchDetail,{theme:theme,match:activeMatch,onBack:function(){setScreen('home')}}));
+  return null;
+}
+
 // ─── App ────────────────────────────────────────────────────
 function App(){
   var _m=useState('light'),mode=_m[0],setMode=_m[1];
@@ -1134,10 +1194,13 @@ function App(){
   var _ma=useState([]),matches=_ma[0],setMatches=_ma[1];
   var _b=useState([]),badges=_b[0],setBadges=_b[1];
   var _rk=useState(0),reloadKey=_rk[0],setReloadKey=_rk[1];
+  var _loading=useState(true),loading=_loading[0],setLoading=_loading[1];
 
   useEffect(function(){
+    setLoading(true);
     Promise.all([Api.listGames(),Api.listPlayers(),Api.listMatches(),Api.listBadges()])
-      .then(function(res){setGames(res[0]);setPlayers(res[1]);setMatches(res[2]);setBadges(res[3])});
+      .then(function(res){setGames(res[0]);setPlayers(res[1]);setMatches(res[2]);setBadges(res[3])})
+      .finally(function(){setLoading(false)});
   },[reloadKey]);
 
   useEffect(function(){
@@ -1150,37 +1213,16 @@ function App(){
 
   var refresh=function(){setReloadKey(function(k){return k+1})};
 
-  // Mobile app wrapper
-  function MobileApp(){
-    var _u=useState(function(){return getStoredUser()}),user=_u[0],setUser=_u[1];
-    var _s=useState(user?'home':'login'),screen=_s[0],setScreen=_s[1];
-    var _am=useState(null),activeMatch=_am[0],setActiveMatch=_am[1];
-
-    var wrap=function(children){
-      return e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg,boxShadow:'0 0 60px rgba(0,0,0,0.06)'}},children);
-    };
-
-    if(screen==='login')return wrap(e(MobileLogin,{theme:theme,onLogin:function(p){setUser(p);setScreen('home');refresh()}}));
-    if(screen==='home')return wrap(e(MobileHome,{theme:theme,user:user,matches:matches,players:players,
-      onNew:function(){setScreen('new')},onProfile:function(){setScreen('profile')},
-      onCatalog:function(){setScreen('catalog')},onRanking:function(){setScreen('ranking')},
-      onMatch:function(m){setActiveMatch(m);setScreen('match')}}));
-    if(screen==='new')return wrap(e(MobileNewMatch,{theme:theme,user:user,games:games,players:players,
-      onCancel:function(){setScreen('home')},onSaved:function(){refresh();setScreen('home')}}));
-    if(screen==='catalog')return wrap(e(MobileCatalog,{theme:theme,games:games,onBack:function(){setScreen('home')}}));
-    if(screen==='profile')return wrap(e(MobileProfile,{theme:theme,user:user,players:players,badges:badges,matches:matches,
-      onBack:function(){setScreen('home')},onLogout:function(){setStoredUser(null);setUser(null);setScreen('login')}}));
-    if(screen==='ranking')return wrap(e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){setScreen('home')}}));
-    if(screen==='match'&&activeMatch)return wrap(e(MobileMatchDetail,{theme:theme,match:activeMatch,onBack:function(){setScreen('home')}}));
-    return null;
-  }
+  // MobileApp moved to top-level (P0 fix)
 
   // Theme toggle (floating)
-  var themeToggle=e('button',{onClick:function(){setMode(mode==='light'?'dark':'light')},
+  var themeToggle=e('button',{onClick:function(){setMode(mode==='light'?'dark':'light')},'aria-label':'Cambiar tema',
     style:{position:'fixed',bottom:16,right:16,zIndex:1000,width:40,height:40,borderRadius:'50%',
       background:theme.deep,color:theme.gold,border:'1px solid '+theme.gold,cursor:'pointer',fontSize:16,
       display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}},
     mode==='light'?'\u{1F319}':'\u2600\uFE0F');
+
+  if(loading)return e('div',{style:{background:theme.bg,minHeight:'100vh'}},e(Loading,{theme:theme,text:'Cargando El Dragon\u2026'}),themeToggle);
 
   if(route==='admin'){
     if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle);
@@ -1191,7 +1233,7 @@ function App(){
   if(route==='ranking')return e('div',null,
     e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg}},
       e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle);
-  return e('div',null,e(MobileApp,null),themeToggle);
+  return e('div',null,e(MobileApp,{theme:theme,games:games,players:players,matches:matches,badges:badges,refresh:refresh}),themeToggle);
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(e(App));
@@ -1203,7 +1245,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(e(App));
     try{
       var b=document.createElement('div');
       b.className='app-version-badge';
-      b.textContent='v2026.05.05.3';
+      b.textContent='v2026.05.05.5';
       document.body.appendChild(b);
     }catch(err){}
   });
