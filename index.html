@@ -1,196 +1,1048 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>El Dragón · Liga de jugadores</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>El Dragon · Liga de jugadores</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; padding: 0; background: #f4ede0; font-family: "Inter Tight", system-ui, sans-serif; height: 100%; }
-  #root { min-height: 100vh; }
-  * { box-sizing: border-box; }
-  /* Scroll bonito en webkit */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #d9b35a55; border-radius: 4px; }
+html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;height:100%}
+#root{min-height:100vh}
+*{box-sizing:border-box}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d9b35a55;border-radius:4px}
 </style>
 </head>
 <body>
-  <template id="__bundler_thumbnail">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <rect width="100" height="100" fill="#15110c"/>
-      <circle cx="50" cy="50" r="32" fill="#a82a1f"/>
-      <text x="50" y="64" font-family="Georgia, serif" font-style="italic" font-size="36" fill="#d9b35a" text-anchor="middle">D</text>
-    </svg>
-  </template>
-  <div id="root"></div>
+<div id="root"></div>
 
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 
-  <script type="text/babel" src="tweaks-panel.jsx"></script>
-  <script type="text/babel" src="supabase-client.jsx"></script>
-  <script type="text/babel" src="ui-tokens.jsx"></script>
-  <script type="text/babel" src="mobile-screens.jsx"></script>
-  <script type="text/babel" src="dashboard.jsx"></script>
-  <script type="text/babel" src="supabase-config.jsx"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  EL DRAGON — App consolidada (produccion)
+// ═══════════════════════════════════════════════════════════════
 
-  <script type="text/babel" data-presets="react">
-    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-      "mode": "light"
-    }/*EDITMODE-END*/;
+const e = React.createElement;
+const {useState, useEffect, useMemo, useCallback, useRef} = React;
 
-    function getRoute() {
-      const clean = (value) => (value || '').toLowerCase().replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '');
-      const pathParts = clean(window.location.pathname).split('/').filter(Boolean);
-      const path = pathParts[pathParts.length - 1] || '';
-      const h = clean(window.location.hash);
-      const q = new URLSearchParams(window.location.search);
+// ─── Tipografia & Tokens ────────────────────────────────────
+const T = {
+  serif:'"Cormorant Garamond","Iowan Old Style",Georgia,serif',
+  sans:'"Inter Tight",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif',
+  mono:'"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace',
+  display:'"Cormorant Garamond",Georgia,serif',
+  light:{
+    bg:'#f4ede0',surface:'#fbf6ec',card:'#ffffff',
+    ink:'#1c1410',inkSoft:'#5a4838',inkMuted:'#9c8a73',
+    line:'#e2d5bc',lineSoft:'#ece1c8',
+    accent:'#a82a1f',accentDk:'#8a1d14',accentInk:'#fbf6ec',
+    gold:'#b88420',goldSoft:'#d9b35a',chip:'#ece1c8',
+    fire:'#d96b1e',deep:'#2d1810',
+  },
+  dark:{
+    bg:'#15110c',surface:'#1c1812',card:'#221d15',
+    ink:'#f4ecd8',inkSoft:'#b3a589',inkMuted:'#7a6f5a',
+    line:'#2c2519',lineSoft:'#241e14',
+    accent:'#d04534',accentDk:'#a82a1f',accentInk:'#15110c',
+    gold:'#d9b35a',goldSoft:'#b88420',chip:'#2a2218',
+    fire:'#e58044',deep:'#0f0b07',
+  },
+};
 
-      if (path === 'admin' || h === 'admin' || q.has('admin')) return 'admin';
-      if (path === 'ranking' || h === 'ranking' || q.has('ranking')) return 'ranking';
-      if (path === 'config' || h === 'config' || q.has('config')) return 'config';
-      return 'app';
+// ─── Logo SVG (medallon heraldico) ──────────────────────────
+function DragonMark({size=40,color,fire='#d96b1e',accent}){
+  return e('svg',{width:size,height:size,viewBox:'0 0 64 64',fill:'none'},
+    e('circle',{cx:32,cy:32,r:30,stroke:color,strokeWidth:1,fill:'none',opacity:.35}),
+    e('circle',{cx:32,cy:32,r:27,fill:color}),
+    e('circle',{cx:32,cy:32,r:24,stroke:fire,strokeWidth:.6,fill:'none',opacity:.5}),
+    e('g',{fill:fire,opacity:.6},
+      e('circle',{cx:32,cy:6,r:1}),e('circle',{cx:32,cy:58,r:1}),
+      e('circle',{cx:6,cy:32,r:1}),e('circle',{cx:58,cy:32,r:1}),
+    ),
+    e('text',{x:32,y:45,fontFamily:'"Cormorant Garamond",Georgia,serif',
+      fontSize:38,fontStyle:'italic',fontWeight:500,fill:accent,textAnchor:'middle',letterSpacing:-1},'D'),
+    e('path',{d:'M 26 14 Q 28 10, 30 14 Q 31 11, 33 14 Q 34 11, 36 14 Q 37 12, 38 15 L 36 17 L 34 15 L 32 17 L 30 15 L 28 17 Z',
+      fill:fire,opacity:.85}),
+  );
+}
+
+function WordMark({theme,size='sm',stacked=false}){
+  const fs=size==='lg'?38:size==='md'?22:14;
+  const sub=size==='lg'?10:9;
+  const mark=e(DragonMark,{size:stacked?(size==='lg'?72:40):(size==='lg'?44:30),color:theme.deep,accent:theme.accent,fire:theme.fire});
+  if(stacked){
+    return e('div',{style:{display:'inline-flex',flexDirection:'column',alignItems:'center',gap:14}},
+      mark,
+      e('div',{style:{fontFamily:T.display,fontSize:fs,fontWeight:500,fontStyle:'italic',color:theme.ink,lineHeight:1,letterSpacing:-.5,textAlign:'center'}},
+        'El ',e('span',{style:{color:theme.accent}},'Dragon')),
+      e('div',{style:{fontFamily:T.sans,fontSize:sub,fontWeight:700,textTransform:'uppercase',letterSpacing:3,color:theme.inkMuted,lineHeight:1,whiteSpace:'nowrap'}},
+        'Board Games \u00B7 Grill'),
+    );
+  }
+  return e('div',{style:{display:'inline-flex',alignItems:'center',gap:10}},
+    mark,
+    e('div',{style:{display:'flex',flexDirection:'column',gap:1}},
+      e('span',{style:{fontFamily:T.display,fontSize:fs,fontWeight:500,fontStyle:'italic',color:theme.ink,lineHeight:1,letterSpacing:-.3}},
+        'El ',e('span',{style:{color:theme.accent}},'Dragon')),
+      e('span',{style:{fontFamily:T.sans,fontSize:sub,fontWeight:600,textTransform:'uppercase',letterSpacing:1.6,color:theme.inkMuted,lineHeight:1}},
+        'Board Games \u00B7 Grill'),
+    ),
+  );
+}
+
+// ─── Primitivos UI ──────────────────────────────────────────
+function Btn({children,onClick,variant='primary',theme,style={}}){
+  const base={border:'none',borderRadius:4,padding:'12px 18px',fontFamily:T.sans,fontSize:13,fontWeight:600,letterSpacing:.4,
+    textTransform:'uppercase',cursor:'pointer',transition:'transform .08s ease,opacity .15s,background .15s',
+    display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6};
+  const v={
+    primary:{background:theme.accent,color:theme.accentInk},
+    dark:{background:theme.deep,color:theme.gold},
+    secondary:{background:theme.chip,color:theme.ink},
+    ghost:{background:'transparent',color:theme.ink,border:'1px solid '+theme.line},
+    text:{background:'transparent',color:theme.accent,padding:'8px 4px',textTransform:'none',letterSpacing:0},
+  }[variant];
+  return e('button',{onClick,style:Object.assign({},base,v,style)},children);
+}
+
+function Field({label,children,theme,hint}){
+  return e('label',{style:{display:'block',marginBottom:14}},
+    e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.2,color:theme.inkSoft,marginBottom:6}},label),
+    children,
+    hint&&e('div',{style:{fontFamily:T.sans,fontSize:12,color:theme.inkMuted,marginTop:4}},hint),
+  );
+}
+
+function Input({theme,style={},...rest}){
+  return e('input',Object.assign({style:Object.assign({width:'100%',boxSizing:'border-box',background:theme.surface,color:theme.ink,
+    border:'1px solid '+theme.line,borderRadius:4,padding:'12px 14px',fontFamily:T.sans,fontSize:15,outline:'none',transition:'border-color .15s'},style),
+    onFocus:function(ev){ev.target.style.borderColor=theme.accent},
+    onBlur:function(ev){ev.target.style.borderColor=theme.line}},rest));
+}
+
+function Pill({children,theme,tone='neutral',style={}}){
+  const tones={
+    neutral:{bg:theme.chip,fg:theme.inkSoft},accent:{bg:theme.accent,fg:theme.accentInk},
+    gold:{bg:'transparent',fg:theme.gold,border:'1px solid '+theme.gold},
+    fire:{bg:theme.fire,fg:'#fff'},outline:{bg:'transparent',fg:theme.inkSoft,border:'1px solid '+theme.line},
+  }[tone];
+  return e('span',{style:Object.assign({display:'inline-flex',alignItems:'center',gap:4,
+    background:tones.bg,color:tones.fg,border:tones.border||'none',
+    borderRadius:3,padding:'3px 8px',fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:.8,textTransform:'uppercase'},style)},children);
+}
+
+function Divider({theme,style={}}){
+  return e('div',{style:Object.assign({display:'flex',alignItems:'center',gap:8,margin:'8px 0'},style)},
+    e('div',{style:{flex:1,height:1,background:theme.line}}),
+    e('svg',{width:8,height:8,viewBox:'0 0 8 8'},e('path',{d:'M 4 0 L 8 4 L 4 8 L 0 4 Z',fill:theme.gold})),
+    e('div',{style:{flex:1,height:1,background:theme.line}}),
+  );
+}
+
+// ─── Helpers ────────────────────────────────────────────────
+function fmtDate(iso){
+  var d=new Date(iso);
+  return d.toLocaleDateString('es',{day:'numeric',month:'short'})+' \u00B7 '+d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+}
+var statCard=function(t){return{background:t.surface,border:'1px solid '+t.lineSoft,borderRadius:6,padding:'14px 14px'}};
+var statLabel=function(t){return{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.2,color:t.inkMuted,marginBottom:6}};
+var statValue=function(t){return{fontFamily:T.display,fontSize:26,color:t.ink,fontWeight:500,lineHeight:1,fontStyle:'italic'}};
+function menuCard(theme){
+  return{padding:'18px 14px',borderRadius:6,background:theme.surface,border:'1px solid '+theme.line,
+    color:theme.ink,fontFamily:T.sans,fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',flexDirection:'column',gap:6,alignItems:'flex-start'};
+}
+
+// ─── Supabase Client & API ──────────────────────────────────
+var SB_KEY='eldragon_sb_creds',USER_KEY='eldragon_user',ADMIN_KEY='eldragon_admin_pin';
+var _sbLoading=null;
+function loadSupabaseSDK(){
+  if(window.supabase&&window.supabase.createClient)return Promise.resolve(window.supabase);
+  if(_sbLoading)return _sbLoading;
+  _sbLoading=new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+    s.onload=function(){resolve(window.supabase)};s.onerror=reject;document.head.appendChild(s);
+  });
+  return _sbLoading;
+}
+function getStoredCreds(){try{return JSON.parse(localStorage.getItem(SB_KEY)||'null')}catch(e){return null}}
+function setStoredCreds(c){c?localStorage.setItem(SB_KEY,JSON.stringify(c)):localStorage.removeItem(SB_KEY)}
+function getStoredUser(){try{return JSON.parse(localStorage.getItem(USER_KEY)||'null')}catch(e){return null}}
+function setStoredUser(u){u?localStorage.setItem(USER_KEY,JSON.stringify(u)):localStorage.removeItem(USER_KEY)}
+
+var DEMO_GAMES=[
+  {id:'g1',name:'Catan',min_players:3,max_players:4,avg_duration:90,category:'estrategia',available:true},
+  {id:'g2',name:'Carcassonne',min_players:2,max_players:5,avg_duration:45,category:'familiar',available:true},
+  {id:'g3',name:'Wingspan',min_players:1,max_players:5,avg_duration:70,category:'estrategia',available:true},
+  {id:'g4',name:'Codenames',min_players:4,max_players:8,avg_duration:20,category:'party',available:true},
+  {id:'g5',name:'Azul',min_players:2,max_players:4,avg_duration:35,category:'familiar',available:false},
+  {id:'g6',name:'7 Wonders Duel',min_players:2,max_players:2,avg_duration:30,category:'estrategia',available:true},
+  {id:'g7',name:'Dixit',min_players:3,max_players:6,avg_duration:30,category:'party',available:true},
+  {id:'g8',name:'Splendor',min_players:2,max_players:4,avg_duration:30,category:'estrategia',available:true},
+];
+var DEMO_PLAYERS=[
+  {id:'p1',username:'mara',display_name:'Mara',avatar_emoji:'\u{1F98A}',matches_played:18,wins:7,total_minutes:980},
+  {id:'p2',username:'tito',display_name:'Tito',avatar_emoji:'\u{1F409}',matches_played:22,wins:11,total_minutes:1340},
+  {id:'p3',username:'lupita',display_name:'Lupita',avatar_emoji:'\u{1F989}',matches_played:14,wins:9,total_minutes:720},
+  {id:'p4',username:'dani',display_name:'Dani',avatar_emoji:'\u{1F43A}',matches_played:9,wins:3,total_minutes:410},
+  {id:'p5',username:'rocio',display_name:'Rocio',avatar_emoji:'\u{1F431}',matches_played:11,wins:4,total_minutes:540},
+  {id:'p6',username:'kike',display_name:'Kike',avatar_emoji:'\u{1F985}',matches_played:7,wins:2,total_minutes:320},
+];
+var DEMO_MATCHES=[
+  {id:'m1',game_id:'g1',game_name:'Catan',played_at:'2026-05-03T19:30:00',duration_min:95,difficulty:3,winner:'tito',players:['mara','tito','lupita','dani'],notes:'Tito construyo muralla en el ultimo turno'},
+  {id:'m2',game_id:'g4',game_name:'Codenames',played_at:'2026-05-03T17:00:00',duration_min:25,difficulty:2,winner:'mara',players:['mara','rocio','kike','dani']},
+  {id:'m3',game_id:'g3',game_name:'Wingspan',played_at:'2026-05-02T20:00:00',duration_min:75,difficulty:4,winner:'lupita',players:['lupita','tito','mara']},
+  {id:'m4',game_id:'g2',game_name:'Carcassonne',played_at:'2026-05-02T15:30:00',duration_min:50,difficulty:2,winner:'tito',players:['tito','rocio']},
+  {id:'m5',game_id:'g6',game_name:'7 Wonders Duel',played_at:'2026-05-01T21:00:00',duration_min:35,difficulty:3,winner:'lupita',players:['lupita','tito']},
+  {id:'m6',game_id:'g5',game_name:'Azul',played_at:'2026-05-01T18:00:00',duration_min:40,difficulty:2,winner:'rocio',players:['rocio','dani','mara']},
+  {id:'m7',game_id:'g7',game_name:'Dixit',played_at:'2026-04-30T19:00:00',duration_min:30,difficulty:1,winner:'kike',players:['kike','mara','lupita','dani','rocio']},
+];
+var DEMO_BADGES=[
+  {id:'first_match',name:'Primera partida',emoji:'\u{1F3B2}'},
+  {id:'first_win',name:'Primera victoria',emoji:'\u{1F3C6}'},
+  {id:'marathon',name:'Maratonista',emoji:'\u23F0'},
+  {id:'explorer',name:'Explorador',emoji:'\u{1F9ED}'},
+  {id:'regular',name:'Habitual',emoji:'\u2615'},
+  {id:'strategist',name:'Estratega',emoji:'\u265F\uFE0F'},
+];
+
+async function hashPin(pin){
+  var enc=new TextEncoder().encode('eldragon-'+pin);
+  var buf=await crypto.subtle.digest('SHA-256',enc);
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+}
+
+var Api={
+  mode:function(){return getStoredCreds()?'live':'demo'},
+  _client:null,
+  client:async function(){
+    var creds=getStoredCreds();if(!creds)return null;
+    var sb=await loadSupabaseSDK();
+    if(!Api._client)Api._client=sb.createClient(creds.url,creds.key);
+    return Api._client;
+  },
+  listGames:async function(){
+    var c=await Api.client();if(!c)return DEMO_GAMES;
+    var r=await c.from('games').select('*').order('name');
+    return r.error?DEMO_GAMES:r.data;
+  },
+  listPlayers:async function(){
+    var c=await Api.client();if(!c)return DEMO_PLAYERS;
+    var r=await c.from('player_stats').select('*').order('wins',{ascending:false});
+    return r.error?DEMO_PLAYERS:r.data;
+  },
+  listMatches:async function(limit){
+    limit=limit||30;var c=await Api.client();if(!c)return DEMO_MATCHES;
+    var r=await c.from('matches')
+      .select('*, games(name), winner:players!matches_winner_id_fkey(username), match_players(player_id, score, players(username))')
+      .order('played_at',{ascending:false}).limit(limit);
+    if(r.error)return DEMO_MATCHES;
+    return(r.data||[]).map(function(m){return{
+      id:m.id,game_id:m.game_id,game_name:m.games?m.games.name:'\u2014',
+      played_at:m.played_at,duration_min:m.duration_min,difficulty:m.difficulty,notes:m.notes,
+      winner:m.winner?m.winner.username:null,
+      players:(m.match_players||[]).map(function(mp){return mp.players?mp.players.username:null}).filter(Boolean),
+    }});
+  },
+  listBadges:async function(){return DEMO_BADGES},
+  findPlayer:async function(username){
+    username=username.trim().toLowerCase();if(!username)throw new Error('Falta nombre');
+    var c=await Api.client();
+    if(!c)return DEMO_PLAYERS.find(function(p){return p.username===username})||null;
+    var r=await c.from('players').select('*').eq('username',username).maybeSingle();
+    return r.data;
+  },
+  createPlayer:async function(username,pin,emoji){
+    username=username.trim().toLowerCase();var c=await Api.client();
+    if(!c)return{id:'demo-'+username,username:username,display_name:username,avatar_emoji:emoji};
+    var ph=await hashPin(pin);
+    var r=await c.from('players').insert({username:username,display_name:username,avatar_emoji:emoji,pin_hash:ph}).select().single();
+    if(r.error)throw r.error;return r.data;
+  },
+  loginPlayer:async function(username,pin){
+    username=username.trim().toLowerCase();var c=await Api.client();
+    if(!c)return DEMO_PLAYERS.find(function(p){return p.username===username})||{id:'demo-'+username,username:username,display_name:username,avatar_emoji:'\u{1F3B2}'};
+    var ph=await hashPin(pin);
+    var r=await c.from('players').select('*').eq('username',username).eq('pin_hash',ph).maybeSingle();
+    if(r.error||!r.data)throw new Error('PIN incorrecto');return r.data;
+  },
+  createMatch:async function(payload){
+    var c=await Api.client();
+    if(!c){console.log('[demo] partida:',payload);return{ok:true,demo:true}}
+    var r=await c.from('matches').insert({
+      game_id:payload.game_id,played_at:payload.played_at,duration_min:payload.duration_min,
+      difficulty:payload.difficulty,winner_id:payload.winner_id,notes:payload.notes,created_by:payload.created_by,
+    }).select().single();
+    if(r.error)throw r.error;
+    if(payload.players&&payload.players.length){
+      var rows=payload.players.map(function(pid){return{match_id:r.data.id,player_id:pid}});
+      await c.from('match_players').insert(rows);
     }
+    return{ok:true,match:r.data};
+  },
+  addGame:async function(name,category){
+    var c=await Api.client();
+    if(!c)return{id:'g-'+Date.now(),name:name,category:category,min_players:2,max_players:4,avg_duration:30};
+    var r=await c.from('games').insert({name:name,category:category}).select().single();
+    if(r.error)throw r.error;return r.data;
+  },
+};
 
-    function goTo(route) {
-      const target = route === 'app' ? '/' : '/' + route;
-      window.history.pushState(null, '', target);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    }
+// ─── Login ──────────────────────────────────────────────────
+function MobileLogin({theme,onLogin}){
+  var _s=useState('name'),step=_s[0],setStep=_s[1];
+  var _n=useState(''),name=_n[0],setName=_n[1];
+  var _e2=useState('\u{1F409}'),emoji=_e2[0],setEmoji=_e2[1];
+  var _p=useState(''),pin=_p[0],setPin=_p[1];
+  var _cp=useState(''),confirmPin=_cp[0],setConfirmPin=_cp[1];
+  var _eo=useState(false),emojiOpen=_eo[0],setEmojiOpen=_eo[1];
+  var _b=useState(false),busy=_b[0],setBusy=_b[1];
+  var _ex=useState(null),existing=_ex[0],setExisting=_ex[1];
+  var _er=useState(''),err=_er[0],setErr=_er[1];
 
-    function App() {
-      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-      const theme = window.LDUI.useTheme(tweaks.mode);
-      const [route, setRoute] = React.useState(getRoute());
-      const [adminOk, setAdminOk] = React.useState(false);
+  var emojis=['\u{1F409}','\u{1F432}','\u{1F525}','\u2694\uFE0F','\u{1F6E1}\uFE0F','\u{1F3B2}','\u{1F3F0}','\u{1F985}','\u{1F98A}','\u{1F989}','\u{1F43A}','\u{1F431}','\u265F\uFE0F','\u{1F0CF}','\u{1F9D9}','\u{1F5E1}\uFE0F'];
 
-      const [games, setGames] = React.useState([]);
-      const [players, setPlayers] = React.useState([]);
-      const [matches, setMatches] = React.useState([]);
-      const [badges, setBadges] = React.useState([]);
-      const [reloadKey, setReloadKey] = React.useState(0);
+  async function handleNameNext(){
+    if(!name.trim()||busy)return;setBusy(true);setErr('');
+    try{var ex=await Api.findPlayer(name);setExisting(ex);setStep('pin')}
+    catch(e2){setErr(e2.message)}finally{setBusy(false)}
+  }
+  async function handlePinSubmit(){
+    if(!pin||pin.length<4){setErr('PIN de al menos 4 digitos');return}
+    setBusy(true);setErr('');
+    try{
+      var player;
+      if(existing){player=await Api.loginPlayer(name,pin)}
+      else{if(pin!==confirmPin){setErr('Los PIN no coinciden');setBusy(false);return}player=await Api.createPlayer(name,pin,emoji)}
+      setStoredUser(player);onLogin(player);
+    }catch(e2){setErr(e2.message||'PIN incorrecto')}finally{setBusy(false)}
+  }
 
-      React.useEffect(() => {
-        Promise.all([
-          window.Api.listGames(), window.Api.listPlayers(),
-          window.Api.listMatches(), window.Api.listBadges(),
-        ]).then(([g, p, m, b]) => {
-          setGames(g); setPlayers(p); setMatches(m); setBadges(b);
-        });
-      }, [reloadKey]);
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,padding:'40px 28px 32px',
+    backgroundImage:'radial-gradient(circle at 50% 0%, '+theme.chip+' 0%, transparent 50%)'}},
+    e('div',{style:{flex:1,display:'flex',flexDirection:'column',justifyContent:'center'}},
+      step==='name'?[
+        e('div',{key:'logo',style:{display:'flex',justifyContent:'center',marginBottom:20}},e(WordMark,{theme:theme,size:'lg',stacked:true})),
+        e(Divider,{key:'div',theme:theme,style:{margin:'20px 40px 28px'}}),
+        e('h1',{key:'h',style:{fontFamily:T.display,fontSize:30,fontWeight:500,color:theme.ink,margin:'0 0 6px',letterSpacing:-.5,lineHeight:1.1,textAlign:'center',fontStyle:'italic'}},
+          'La ',e('span',{style:{color:theme.accent}},'Liga'),' de jugadores'),
+        e('p',{key:'sub',style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:'0 auto 32px',lineHeight:1.5,maxWidth:280,textAlign:'center'}},
+          'Registra tus partidas. Sube en el ranking. Desbloquea logros.'),
+        e(Field,{key:'f1',label:'Nombre o apodo',theme:theme},
+          e(Input,{theme:theme,value:name,onChange:function(ev){setName(ev.target.value)},placeholder:'ej. Mara',autoFocus:true,
+            onKeyDown:function(ev){if(ev.key==='Enter')handleNameNext()}})),
+        e(Field,{key:'f2',label:'Avatar',theme:theme},
+          e('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},
+            emojis.slice(0,emojiOpen?16:8).map(function(em){
+              return e('button',{key:em,onClick:function(){setEmoji(em)},style:{width:38,height:38,borderRadius:4,
+                border:'1.5px solid '+(emoji===em?theme.accent:theme.line),
+                background:emoji===em?theme.chip:theme.surface,fontSize:20,cursor:'pointer'}},em);
+            }),
+            !emojiOpen&&e('button',{key:'more',onClick:function(){setEmojiOpen(true)},style:{width:38,height:38,borderRadius:4,
+              border:'1.5px dashed '+theme.line,background:'transparent',color:theme.inkMuted,fontSize:16,cursor:'pointer'}},'+'),
+          )),
+        err&&e('p',{key:'err',style:{color:theme.accent,fontSize:13,margin:'0 0 12px'}},err),
+        e(Btn,{key:'btn',theme:theme,variant:'dark',onClick:handleNameNext,style:{width:'100%',padding:'15px',fontSize:13}},busy?'Buscando\u2026':'Continuar \u2192'),
+      ]:[
+        e('button',{key:'back',onClick:function(){setStep('name');setPin('');setConfirmPin('');setErr('')},
+          style:{background:'none',border:'none',color:theme.inkSoft,padding:0,fontFamily:T.sans,fontSize:13,cursor:'pointer',alignSelf:'flex-start',marginBottom:24}},'\u2190 Atras'),
+        e('div',{key:'avatar',style:{textAlign:'center',marginBottom:24}},
+          e('div',{style:{fontSize:40,marginBottom:8,width:64,height:64,borderRadius:'50%',background:theme.chip,display:'inline-flex',alignItems:'center',justifyContent:'center'}},
+            existing?existing.avatar_emoji:emoji),
+          e('h2',{style:{fontFamily:T.display,fontSize:26,fontStyle:'italic',color:theme.ink,margin:'0 0 4px',letterSpacing:-.3}},
+            existing?'Hola, '+existing.display_name:'Bienvenida, '+name),
+          e('p',{style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:0}},
+            existing?'Ingresa tu PIN para entrar':'Crea un PIN para tu cuenta'),
+        ),
+        e(Field,{key:'pin',label:existing?'Tu PIN':'Crea un PIN (4-6 digitos)',theme:theme},
+          e(Input,{theme:theme,value:pin,onChange:function(ev){setPin(ev.target.value.replace(/\D/g,'').slice(0,6))},
+            type:'tel',inputMode:'numeric',placeholder:'\u2022\u2022\u2022\u2022',autoFocus:true,
+            style:{fontFamily:T.mono,fontSize:22,letterSpacing:6,textAlign:'center'},
+            onKeyDown:function(ev){if(ev.key==='Enter')handlePinSubmit()}})),
+        !existing&&e(Field,{key:'confirm',label:'Confirma tu PIN',theme:theme},
+          e(Input,{theme:theme,value:confirmPin,onChange:function(ev){setConfirmPin(ev.target.value.replace(/\D/g,'').slice(0,6))},
+            type:'tel',inputMode:'numeric',placeholder:'\u2022\u2022\u2022\u2022',
+            style:{fontFamily:T.mono,fontSize:22,letterSpacing:6,textAlign:'center'},
+            onKeyDown:function(ev){if(ev.key==='Enter')handlePinSubmit()}})),
+        err&&e('p',{key:'err2',style:{color:theme.accent,fontSize:13,margin:'0 0 12px'}},err),
+        e(Btn,{key:'btn2',theme:theme,variant:'dark',onClick:handlePinSubmit,style:{width:'100%',padding:'15px',fontSize:13}},
+          busy?'Entrando\u2026':(existing?'Entrar':'Crear cuenta')),
+      ],
+    ),
+  );
+}
 
-      React.useEffect(() => {
-        const h = () => setRoute(getRoute());
-        window.addEventListener('hashchange', h);
-        window.addEventListener('popstate', h);
-        return () => { window.removeEventListener('hashchange', h); window.removeEventListener('popstate', h); };
-      }, []);
-
-      React.useEffect(() => {
-        document.body.style.background = theme.bg;
-      }, [theme]);
-
-      const refresh = () => setReloadKey(k => k + 1);
-
-      // ── App móvil ──────────────────────────────────────────
-      function MobileApp() {
-        const M = window.LDMobile;
-        const [user, setUser] = React.useState(() => window.LigaDragon.getStoredUser());
-        const [screen, setScreen] = React.useState(user ? 'home' : 'login');
-        const [activeMatch, setActiveMatch] = React.useState(null);
-
-        const wrap = (children) => (
-          <div style={{
-            maxWidth: 480, margin: '0 auto', minHeight: '100vh',
-            display: 'flex', flexDirection: 'column', background: theme.bg,
-            boxShadow: '0 0 60px rgba(0,0,0,0.06)',
-          }}>{children}</div>
+// ─── Home ───────────────────────────────────────────────────
+function MobileHome({theme,user,matches,players,onNew,onProfile,onCatalog,onRanking,onMatch}){
+  var me=players.find(function(p){return p.username===user.username});
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
+      e(WordMark,{theme:theme}),
+      e('button',{onClick:onProfile,style:{width:38,height:38,borderRadius:'50%',background:theme.chip,border:'1px solid '+theme.line,fontSize:18,cursor:'pointer',
+        display:'flex',alignItems:'center',justifyContent:'center'}},user.avatar_emoji),
+    ),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'20px 20px 100px'}},
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,color:theme.gold,marginBottom:6}},'\u2605 Bienvenido \u2605'),
+      e('h2',{style:{fontFamily:T.display,fontSize:32,fontWeight:500,lineHeight:1.05,color:theme.ink,margin:'0 0 4px',letterSpacing:-.5,fontStyle:'italic'}},
+        'Hola, ',e('span',{style:{color:theme.accent}},user.display_name||user.username)),
+      e('p',{style:{fontFamily:T.sans,fontSize:14,color:theme.inkSoft,margin:'0 0 24px'}},
+        me&&me.matches_played?me.matches_played+' partidas registradas. '+me.wins+' victorias.':'\u00BFLista para tu primera partida?'),
+      // CTA
+      e('button',{onClick:onNew,style:{width:'100%',padding:'20px',borderRadius:6,background:theme.deep,color:theme.gold,border:'none',cursor:'pointer',textAlign:'left',
+        display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,position:'relative',overflow:'hidden'}},
+        e('div',{style:{position:'absolute',top:-10,right:-10,opacity:.15}},e(DragonMark,{size:80,color:theme.gold,accent:theme.accent,fire:theme.fire})),
+        e('div',{style:{position:'relative'}},
+          e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,opacity:.7,marginBottom:4}},'+ NUEVA'),
+          e('div',{style:{fontFamily:T.display,fontSize:22,fontWeight:500,fontStyle:'italic'}},'Registrar partida'),
+          e('div',{style:{fontFamily:T.sans,fontSize:12,opacity:.7,marginTop:2}},'Toma 20 segundos'),
+        ),
+        e('span',{style:{fontSize:22,position:'relative'}},'\u2192'),
+      ),
+      e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:28}},
+        e('button',{onClick:onRanking,style:menuCard(theme)},e('span',{style:{fontSize:18}},'\u{1F3C6}'),e('span',null,'Ranking')),
+        e('button',{onClick:onCatalog,style:menuCard(theme)},e('span',{style:{fontSize:18}},'\u265F\uFE0F'),e('span',null,'Catalogo')),
+      ),
+      e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}},
+        e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,color:theme.inkMuted}},'Cronicas recientes'),
+      ),
+      matches.length===0&&e('div',{style:{padding:'32px 20px',textAlign:'center',background:theme.surface,border:'1px dashed '+theme.line,borderRadius:6,fontFamily:T.sans,fontSize:13,color:theme.inkMuted}},
+        'Aun no hay partidas. Se la primera en escribir la historia.'),
+      matches.slice(0,8).map(function(m){
+        return e('button',{key:m.id,onClick:function(){onMatch(m)},style:{display:'block',width:'100%',textAlign:'left',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'14px 16px',marginBottom:8,cursor:'pointer'}},
+          e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline'}},
+            e('div',{style:{fontFamily:T.display,fontSize:18,color:theme.ink,fontStyle:'italic',fontWeight:500}},m.game_name),
+            e('div',{style:{fontFamily:T.mono,fontSize:10,color:theme.inkMuted}},fmtDate(m.played_at)),
+          ),
+          e('div',{style:{fontFamily:T.sans,fontSize:12,color:theme.inkSoft,marginTop:4,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+            e('span',null,(m.players||[]).join(' \u00B7 ')),
+            m.winner&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner),
+          ),
         );
+      }),
+    ),
+  );
+}
 
-        if (screen === 'login') return wrap(
-          <M.MobileLogin theme={theme} onLogin={(p) => { setUser(p); setScreen('home'); refresh(); }} />
-        );
-        if (screen === 'home') return wrap(
-          <M.MobileHome theme={theme} user={user} matches={matches} players={players}
-            onNew={() => setScreen('new')}
-            onProfile={() => setScreen('profile')}
-            onCatalog={() => setScreen('catalog')}
-            onRanking={() => setScreen('ranking')}
-            onMatch={(m) => { setActiveMatch(m); setScreen('match'); }} />
-        );
-        if (screen === 'new') return wrap(
-          <M.MobileNewMatch theme={theme} user={user} games={games} players={players}
-            onCancel={() => setScreen('home')}
-            onSaved={() => { refresh(); setScreen('home'); }} />
-        );
-        if (screen === 'catalog') return wrap(
-          <M.MobileCatalog theme={theme} games={games} onBack={() => setScreen('home')} />
-        );
-        if (screen === 'profile') return wrap(
-          <M.MobileProfile theme={theme} user={user} players={players} badges={badges} matches={matches}
-            onBack={() => setScreen('home')}
-            onLogout={() => { window.LigaDragon.setStoredUser(null); setUser(null); setScreen('login'); }} />
-        );
-        if (screen === 'ranking') return wrap(
-          <M.MobileRanking theme={theme} players={players} onBack={() => setScreen('home')} />
-        );
-        if (screen === 'match' && activeMatch) return wrap(
-          <M.MobileMatchDetail theme={theme} match={activeMatch} onBack={() => setScreen('home')} />
-        );
-      }
+// ─── Match Detail ───────────────────────────────────────────
+function MobileMatchDetail({theme,match,onBack}){
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
+      e('button',{onClick:onBack,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Atras')),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'24px 20px 40px'}},
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,color:theme.gold,marginBottom:6,textTransform:'uppercase'}},'Cronica \u00B7 '+fmtDate(match.played_at)),
+      e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 16px',letterSpacing:-.8,lineHeight:1.05}},match.game_name),
+      e(Divider,{theme:theme,style:{margin:'20px 0 24px'}}),
+      match.winner&&e('div',{style:{background:theme.deep,color:theme.gold,padding:'20px',borderRadius:6,marginBottom:20,textAlign:'center'}},
+        e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,opacity:.7}},'GANADOR'),
+        e('div',{style:{fontFamily:T.display,fontSize:32,fontStyle:'italic',fontWeight:500,marginTop:4}},'\u{1F3C6} '+match.winner),
+      ),
+      e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:24}},
+        match.duration_min&&e('div',{style:statCard(theme)},e('div',{style:statLabel(theme)},'Duracion'),
+          e('div',{style:statValue(theme)},match.duration_min,e('span',{style:{fontSize:14,marginLeft:4}},'min'))),
+        match.difficulty&&e('div',{style:statCard(theme)},e('div',{style:statLabel(theme)},'Dificultad'),
+          e('div',{style:statValue(theme)},'\u2605'.repeat(match.difficulty),e('span',{style:{color:theme.lineSoft}},'\u2605'.repeat(5-match.difficulty)))),
+      ),
+      e('div',{style:Object.assign({},statLabel(theme),{marginBottom:10})},'Jugadores'),
+      e('div',{style:{display:'flex',flexDirection:'column',gap:6,marginBottom:24}},
+        (match.players||[]).map(function(p){
+          return e('div',{key:p,style:{padding:'12px 14px',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,display:'flex',justifyContent:'space-between',alignItems:'center'}},
+            e('span',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink}},p),
+            match.winner===p&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} Ganador'),
+          );
+        }),
+      ),
+      match.notes&&[
+        e('div',{key:'nl',style:Object.assign({},statLabel(theme),{marginBottom:10})},'Notas'),
+        e('div',{key:'nv',style:{padding:'14px 16px',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,fontFamily:T.serif,fontSize:16,color:theme.inkSoft,fontStyle:'italic',lineHeight:1.5}},'"'+match.notes+'"'),
+      ],
+    ),
+  );
+}
 
-      // ── Routing ────────────────────────────────────────────
-      if (route === 'admin') {
-        if (!adminOk) return <window.LDAdminGate theme={theme} onUnlock={() => setAdminOk(true)} />;
-        return <window.LDDashboard theme={theme} players={players} matches={matches} games={games}
-                  onLogout={() => { setAdminOk(false); goTo('app'); }} />;
-      }
-      if (route === 'config') {
-        return <window.LDSupabase theme={theme} onChanged={refresh}
-                  onClose={() => goTo('app')} />;
-      }
-      if (route === 'ranking') {
-        // Ranking público en formato móvil
-        return (
-          <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: theme.bg }}>
-            <window.LDMobile.MobileRanking theme={theme} players={players}
-              onBack={() => goTo('app')} />
-          </div>
+// ─── New Match ──────────────────────────────────────────────
+function MobileNewMatch({theme,user,games,players,onCancel,onSaved}){
+  var _s=useState(1),step=_s[0],setStep=_s[1];
+  var _gq=useState(''),gameQuery=_gq[0],setGameQuery=_gq[1];
+  var _g=useState(null),game=_g[0],setGame=_g[1];
+  var _d=useState(new Date().toISOString().slice(0,16)),date=_d[0],setDate=_d[1];
+  var _du=useState(''),duration=_du[0],setDuration=_du[1];
+  var _di=useState(0),difficulty=_di[0],setDifficulty=_di[1];
+  var _w=useState(null),winner=_w[0],setWinner=_w[1];
+  var _pa=useState([user.id]),participants=_pa[0],setParticipants=_pa[1];
+  var _no=useState(''),notes=_no[0],setNotes=_no[1];
+  var _bu=useState(false),busy2=_bu[0],setBusy2=_bu[1];
+
+  var filtered=useMemo(function(){
+    var q=gameQuery.trim().toLowerCase();
+    if(!q)return games.slice(0,8);
+    return games.filter(function(g2){return g2.name.toLowerCase().includes(q)}).slice(0,10);
+  },[gameQuery,games]);
+
+  async function save(){
+    if(!game)return;setBusy2(true);
+    try{
+      await Api.createMatch({game_id:game.id,played_at:new Date(date).toISOString(),
+        duration_min:duration?parseInt(duration):null,difficulty:difficulty||null,
+        winner_id:winner,players:participants,notes:notes||null,created_by:user.id});
+      onSaved();
+    }catch(e2){alert(e2.message||'Error')}finally{setBusy2(false)}
+  }
+
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',borderBottom:'1px solid '+theme.lineSoft,background:theme.surface,display:'flex',alignItems:'center',justifyContent:'space-between'}},
+      e('button',{onClick:onCancel,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Cancelar'),
+      e('span',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkMuted,letterSpacing:2}},step+'/2'),
+    ),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'24px 20px 100px'}},
+      step===1?[
+        e('h2',{key:'h',style:{fontFamily:T.display,fontSize:30,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 6px',letterSpacing:-.5}},'\u00BFQue juego?'),
+        e('p',{key:'p',style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:'0 0 20px'}},'Busca o agrega uno nuevo'),
+        e(Input,{key:'i',theme:theme,value:gameQuery,onChange:function(ev){setGameQuery(ev.target.value)},placeholder:'Buscar juego\u2026'}),
+        e('div',{key:'list',style:{marginTop:12}},
+          filtered.map(function(g2){
+            return e('button',{key:g2.id,onClick:function(){setGame(g2)},style:{width:'100%',textAlign:'left',padding:'12px 14px',
+              background:game&&game.id===g2.id?theme.chip:theme.surface,border:'1px solid '+(game&&game.id===g2.id?theme.accent:theme.lineSoft),
+              borderRadius:4,marginBottom:6,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}},
+              e('div',null,
+                e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},g2.name),
+                e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:2}},g2.min_players+'\u2013'+g2.max_players+' jug \u00B7 ~'+(g2.avg_duration||'\u2014')+' min'),
+              ),
+              g2.category&&e(Pill,{theme:theme,tone:'outline'},g2.category),
+            );
+          }),
+          gameQuery&&!filtered.find(function(g2){return g2.name.toLowerCase()===gameQuery.toLowerCase()})&&
+            e('button',{onClick:async function(){var ng=await Api.addGame(gameQuery);setGame(ng)},style:{width:'100%',padding:'12px',borderRadius:4,
+              background:'transparent',color:theme.accent,border:'1.5px dashed '+theme.accent,cursor:'pointer',fontFamily:T.sans,fontSize:13,fontWeight:600,marginTop:4}},
+              '+ Agregar "'+gameQuery+'"'),
+        ),
+      ]:[
+        e('h2',{key:'h2',style:{fontFamily:T.display,fontSize:30,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 6px',letterSpacing:-.5}},'Detalles'),
+        e('p',{key:'p2',style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:'0 0 20px'}},'Solo el juego es obligatorio. Lo demas es opcional.'),
+        e(Field,{key:'when',label:'Cuando',theme:theme},e(Input,{theme:theme,type:'datetime-local',value:date,onChange:function(ev){setDate(ev.target.value)}})),
+        e(Field,{key:'dur',label:'Duracion (min)',theme:theme},e(Input,{theme:theme,type:'number',value:duration,onChange:function(ev){setDuration(ev.target.value)},placeholder:'ej. 60'})),
+        e(Field,{key:'diff',label:'Dificultad',theme:theme},
+          e('div',{style:{display:'flex',gap:6}},[1,2,3,4,5].map(function(n){
+            return e('button',{key:n,onClick:function(){setDifficulty(difficulty===n?0:n)},style:{flex:1,padding:'10px 0',borderRadius:4,
+              background:difficulty>=n?theme.accent:theme.surface,color:difficulty>=n?theme.accentInk:theme.inkSoft,
+              border:'1px solid '+(difficulty>=n?theme.accent:theme.line),fontFamily:T.sans,fontSize:14,fontWeight:600,cursor:'pointer'}},'\u2605');
+          }))),
+        e(Field,{key:'pla',label:'Jugadores',theme:theme},
+          e('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},players.map(function(p){
+            var on=participants.includes(p.id);
+            return e('button',{key:p.id,onClick:function(){
+              setParticipants(on?participants.filter(function(id){return id!==p.id}):[].concat(participants,[p.id]));
+              if(winner===p.id&&on)setWinner(null);
+            },style:{padding:'7px 11px',borderRadius:999,background:on?theme.chip:theme.surface,
+              border:'1px solid '+(on?theme.accent:theme.line),color:theme.ink,fontFamily:T.sans,fontSize:12,cursor:'pointer',display:'inline-flex',gap:4,alignItems:'center'}},
+              p.avatar_emoji+' '+p.username);
+          }))),
+        e(Field,{key:'win',label:'Ganador',theme:theme},
+          e('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},players.filter(function(p){return participants.includes(p.id)}).map(function(p){
+            return e('button',{key:p.id,onClick:function(){setWinner(winner===p.id?null:p.id)},style:{padding:'7px 11px',borderRadius:999,
+              background:winner===p.id?theme.gold:theme.surface,border:'1px solid '+(winner===p.id?theme.gold:theme.line),
+              color:winner===p.id?'#fff':theme.ink,fontFamily:T.sans,fontSize:12,cursor:'pointer',display:'inline-flex',gap:4,alignItems:'center'}},
+              '\u{1F3C6} '+p.username);
+          }))),
+        e(Field,{key:'notes',label:'Notas o anecdota',theme:theme},
+          e('textarea',{value:notes,onChange:function(ev){setNotes(ev.target.value)},placeholder:'ej. partida epica, remonto al final\u2026',
+            style:{width:'100%',boxSizing:'border-box',minHeight:80,resize:'vertical',background:theme.surface,color:theme.ink,
+              border:'1px solid '+theme.line,borderRadius:4,padding:'12px 14px',fontFamily:T.sans,fontSize:14,outline:'none'}})),
+      ],
+    ),
+    e('div',{style:{padding:'12px 20px 20px',borderTop:'1px solid '+theme.lineSoft,background:theme.bg,display:'flex',gap:10}},
+      step===1?
+        e(Btn,{theme:theme,variant:'dark',onClick:function(){if(game)setStep(2)},style:{flex:1,padding:'15px',opacity:game?1:.4,pointerEvents:game?'auto':'none'}},'Siguiente \u2192')
+      :[
+        e(Btn,{key:'b1',theme:theme,variant:'ghost',onClick:function(){setStep(1)},style:{padding:'15px 16px'}},'\u2190 Atras'),
+        e(Btn,{key:'b2',theme:theme,variant:'dark',onClick:save,style:{flex:1,padding:'15px'}},busy2?'Guardando\u2026':'Guardar partida'),
+      ],
+    ),
+  );
+}
+
+// ─── Catalog ────────────────────────────────────────────────
+function MobileCatalog({theme,games,onBack}){
+  var _q=useState(''),q=_q[0],setQ=_q[1];
+  var _c=useState('todas'),cat=_c[0],setCat=_c[1];
+  var cats=['todas'].concat(Array.from(new Set(games.map(function(g2){return g2.category}).filter(Boolean))));
+  var filtered=games.filter(function(g2){return g2.name.toLowerCase().includes(q.toLowerCase())&&(cat==='todas'||g2.category===cat)});
+
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',gap:12,borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
+      e('button',{onClick:onBack,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Atras'),
+      e('span',{style:{fontFamily:T.sans,fontSize:13,fontWeight:600,color:theme.ink,textTransform:'uppercase',letterSpacing:1}},'Catalogo'),
+    ),
+    e('div',{style:{padding:'20px 20px 12px'}},
+      e('h2',{style:{fontFamily:T.display,fontSize:30,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 16px',letterSpacing:-.5}},games.length+' juegos en la mesa'),
+      e(Input,{theme:theme,value:q,onChange:function(ev){setQ(ev.target.value)},placeholder:'Buscar\u2026'}),
+      e('div',{style:{display:'flex',gap:6,marginTop:12,overflowX:'auto',paddingBottom:4}},
+        cats.map(function(c2){
+          return e('button',{key:c2,onClick:function(){setCat(c2)},style:{padding:'6px 12px',borderRadius:999,
+            background:cat===c2?theme.deep:'transparent',color:cat===c2?theme.gold:theme.inkSoft,
+            border:'1px solid '+(cat===c2?theme.deep:theme.line),fontFamily:T.sans,fontSize:11,fontWeight:600,cursor:'pointer',
+            textTransform:'uppercase',letterSpacing:1,whiteSpace:'nowrap'}},c2);
+        }),
+      ),
+    ),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'8px 20px 40px'}},
+      filtered.map(function(g2){
+        return e('div',{key:g2.id,style:{padding:'14px 0',borderBottom:'1px solid '+theme.lineSoft,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}},
+          e('div',{style:{flex:1,minWidth:0}},
+            e('div',{style:{fontFamily:T.display,fontSize:18,fontStyle:'italic',color:theme.ink,fontWeight:500}},g2.name),
+            e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:2}},g2.min_players+'\u2013'+g2.max_players+' jug \u00B7 ~'+(g2.avg_duration||'\u2014')+' min'),
+          ),
+          e('div',{style:{display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end'}},
+            g2.category&&e(Pill,{theme:theme,tone:'outline'},g2.category),
+            g2.available===false&&e(Pill,{theme:theme,tone:'fire'},'prestado'),
+          ),
         );
-      }
-      return <MobileApp />;
-    }
+      }),
+    ),
+  );
+}
 
-    // Tweaks separados para que se apliquen siempre
-    function Root() {
-      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-      return (
-        <>
-          <App />
-          <TweaksPanel title="Tweaks">
-            <TweakSection title="Apariencia">
-              <TweakRadio label="Modo" value={tweaks.mode}
-                options={[{ value: 'light', label: 'Pergamino' }, { value: 'dark', label: 'Noche' }]}
-                onChange={v => setTweak('mode', v)} />
-            </TweakSection>
-            <TweakSection title="Rutas">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-                <a href="/" style={{ color: '#a82a1f' }}>App de jugadores</a>
-                <a href="/admin" style={{ color: '#a82a1f' }}>Dashboard /admin</a>
-                <a href="/ranking" style={{ color: '#a82a1f' }}>Ranking público</a>
-                <a href="/config" style={{ color: '#a82a1f' }}>Configurar Supabase</a>
-              </div>
-            </TweakSection>
-          </TweaksPanel>
-        </>
-      );
-    }
+// ─── Ranking ────────────────────────────────────────────────
+function MobileRanking({theme,players,onBack}){
+  var sorted=players.slice().sort(function(a,b){return b.wins-a.wins});
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',gap:12,borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
+      e('button',{onClick:onBack,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Atras'),
+      e('span',{style:{fontFamily:T.sans,fontSize:13,fontWeight:600,color:theme.ink,textTransform:'uppercase',letterSpacing:1}},'Ranking'),
+    ),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'24px 20px 40px'}},
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,color:theme.gold,marginBottom:6,textTransform:'uppercase'}},'\u2605 Liga del Dragon \u2605'),
+      e('h2',{style:{fontFamily:T.display,fontSize:32,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 24px',letterSpacing:-.5}},'Maestros de la mesa'),
+      sorted.map(function(p,i){
+        return e('div',{key:p.id,style:{display:'grid',gridTemplateColumns:'32px 36px 1fr auto',gap:12,alignItems:'center',padding:'12px 0',borderBottom:'1px solid '+theme.lineSoft}},
+          e('div',{style:{fontFamily:T.display,fontSize:i<3?24:18,color:i===0?theme.gold:i===1?theme.inkSoft:i===2?theme.fire:theme.inkMuted,fontWeight:500,fontStyle:'italic'}},i+1),
+          e('div',{style:{width:32,height:32,borderRadius:'50%',background:theme.chip,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}},p.avatar_emoji),
+          e('div',null,
+            e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},p.display_name||p.username),
+            e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:1}},p.matches_played+' partidas'),
+          ),
+          e('div',{style:{fontFamily:T.display,fontSize:24,fontWeight:500,fontStyle:'italic',color:i===0?theme.gold:theme.accent,letterSpacing:-.5}},p.wins),
+        );
+      }),
+      e('div',{style:{marginTop:24,padding:'16px',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,textAlign:'center'}},
+        e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginBottom:4,textTransform:'uppercase',letterSpacing:1}},'Comparte el ranking'),
+        e('div',{style:{fontFamily:T.mono,fontSize:12,color:theme.ink,wordBreak:'break-all'}},window.location.origin+'/ranking'),
+      ),
+    ),
+  );
+}
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
-  </script>
+// ─── Profile ────────────────────────────────────────────────
+function MobileProfile({theme,user,players,badges,matches,onBack,onLogout}){
+  var me=players.find(function(p){return p.username===user.username})||{matches_played:0,wins:0,total_minutes:0};
+  var myMatches=matches.filter(function(m){return(m.players||[]).includes(user.username)});
+  var friendsMap={};
+  myMatches.forEach(function(m){(m.players||[]).forEach(function(p){if(p!==user.username)friendsMap[p]=(friendsMap[p]||0)+1})});
+  var friends=Object.entries(friendsMap).sort(function(a,b){return b[1]-a[1]}).slice(0,4);
+  var earned=[];
+  if(me.matches_played>0)earned.push('first_match');
+  if(me.wins>0)earned.push('first_win');
+  if(me.matches_played>=25)earned.push('regular');
+
+  return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
+    e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
+      e('button',{onClick:onBack,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Atras'),
+      e('button',{onClick:onLogout,style:{background:'none',border:'none',color:theme.inkMuted,fontFamily:T.sans,fontSize:11,cursor:'pointer',padding:0,textTransform:'uppercase',letterSpacing:1}},'Salir'),
+    ),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'24px 20px 40px'}},
+      e('div',{style:{textAlign:'center',marginBottom:24}},
+        e('div',{style:{width:72,height:72,borderRadius:'50%',background:theme.chip,border:'2px solid '+theme.gold,fontSize:36,display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:12}},user.avatar_emoji),
+        e('div',{style:{fontFamily:T.display,fontSize:30,fontStyle:'italic',color:theme.ink,lineHeight:1,letterSpacing:-.5,fontWeight:500}},user.display_name||user.username),
+        e('div',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkMuted,marginTop:6}},'@'+user.username),
+      ),
+      e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:28}},
+        [['Partidas',me.matches_played],['Victorias',me.wins],['Horas',Math.round((me.total_minutes||0)/60)]].map(function(arr){
+          return e('div',{key:arr[0],style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'14px 10px',textAlign:'center'}},
+            e('div',{style:{fontFamily:T.display,fontSize:30,color:theme.ink,lineHeight:1,letterSpacing:-.5,fontStyle:'italic',fontWeight:500}},arr[1]),
+            e('div',{style:{fontFamily:T.sans,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:theme.inkMuted,marginTop:6}},arr[0]),
+          );
+        }),
+      ),
+      e('div',{style:Object.assign({},statLabel(theme),{marginBottom:10})},'Logros'),
+      e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:28}},
+        badges.map(function(b){
+          var ok=earned.includes(b.id);
+          return e('div',{key:b.id,style:{background:theme.surface,border:'1px solid '+(ok?theme.gold:theme.lineSoft),borderRadius:6,padding:'12px 6px',textAlign:'center',opacity:ok?1:.32}},
+            e('div',{style:{fontSize:22,filter:ok?'none':'grayscale(1)'}},b.emoji),
+            e('div',{style:{fontFamily:T.sans,fontSize:9,color:theme.inkSoft,marginTop:4,lineHeight:1.2,fontWeight:600}},b.name),
+          );
+        }),
+      ),
+      friends.length>0&&[
+        e('div',{key:'fl',style:Object.assign({},statLabel(theme),{marginBottom:10})},'Companeros frecuentes'),
+        e('div',{key:'fv',style:{display:'flex',flexDirection:'column',gap:4}},
+          friends.map(function(f){
+            return e('div',{key:f[0],style:{display:'flex',justifyContent:'space-between',padding:'10px 14px',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:4}},
+              e('span',{style:{fontFamily:T.display,fontSize:15,fontStyle:'italic',color:theme.ink}},f[0]),
+              e('span',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkMuted}},f[1]+' partidas'),
+            );
+          }),
+        ),
+      ],
+    ),
+  );
+}
+
+// ─── Admin Gate ─────────────────────────────────────────────
+function AdminGate({theme,onUnlock}){
+  var _p=useState(''),pin=_p[0],setPin=_p[1];
+  var _e2=useState(''),err=_e2[0],setErr=_e2[1];
+  var stored=localStorage.getItem(ADMIN_KEY);
+  function submit(){
+    if(!stored){if(pin.length<4){setErr('Minimo 4 digitos');return}localStorage.setItem(ADMIN_KEY,pin);onUnlock()}
+    else{if(pin===stored)onUnlock();else setErr('PIN incorrecto')}
+  }
+  return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',background:theme.bg,color:theme.ink,fontFamily:T.sans,
+    display:'flex',alignItems:'center',justifyContent:'center',padding:40}},
+    e('div',{style:{maxWidth:380,width:'100%',textAlign:'center',padding:'40px 32px',background:theme.surface,border:'1px solid '+theme.line,borderRadius:8}},
+      e('div',{style:{display:'flex',justifyContent:'center',marginBottom:16}},e(DragonMark,{size:56,color:theme.deep,accent:theme.accent,fire:theme.fire})),
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:2,color:theme.gold,marginBottom:4,textTransform:'uppercase'}},'\u2605 Acceso restringido \u2605'),
+      e('h1',{style:{fontFamily:T.display,fontSize:30,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 6px',letterSpacing:-.5}},'Dashboard'),
+      e('p',{style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:'0 0 24px'}},stored?'Ingresa el PIN del propietario':'Crea un PIN para proteger esta vista'),
+      e(Input,{theme:theme,value:pin,type:'tel',inputMode:'numeric',onChange:function(ev){setPin(ev.target.value.replace(/\D/g,'').slice(0,8))},
+        placeholder:'\u2022\u2022\u2022\u2022',autoFocus:true,style:{fontFamily:T.mono,fontSize:22,letterSpacing:6,textAlign:'center'},
+        onKeyDown:function(ev){if(ev.key==='Enter')submit()}}),
+      err&&e('p',{style:{color:theme.accent,fontSize:13,margin:'12px 0 0'}},err),
+      e(Btn,{theme:theme,variant:'dark',onClick:submit,style:{width:'100%',marginTop:16,padding:'14px'}},stored?'Entrar':'Crear PIN'),
+      e('p',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,margin:'16px 0 0'}},
+        '\u00BFNo eres el propietario? ',e('a',{href:'/',style:{color:theme.accent}},'Volver a la app')),
+    ),
+  );
+}
+
+// ─── Dashboard (responsive) ─────────────────────────────────
+function SimpleList({theme,title,items}){
+  return e('div',null,
+    e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',margin:'0 0 24px',letterSpacing:-.8}},title),
+    e('div',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'12px 20px'}},
+      items.map(function(it,i){
+        return e('div',{key:it.id,style:{display:'flex',flexWrap:'wrap',gap:'8px 16px',padding:'14px 0',alignItems:'center',
+          borderBottom:i<items.length-1?'1px solid '+theme.lineSoft:'none'}},
+          e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500,flex:'1 1 140px',minWidth:100}},it.primary),
+          e('div',{style:{fontFamily:T.sans,fontSize:12,color:theme.inkSoft,flex:'1 1 140px',minWidth:100}},it.secondary),
+          e('div',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkMuted,flex:'0 0 auto'}},it.meta),
+          it.tag&&e('div',{style:{flex:'0 0 auto'}},e(Pill,{theme:theme,tone:'outline'},it.tag)),
+        );
+      }),
+    ),
+  );
+}
+
+function Dashboard({theme,players,matches,games,onLogout}){
+  var _v=useState('overview'),view=_v[0],setView=_v[1];
+  var _mob=useState(false),sideOpen=_mob[0],setSideOpen=_mob[1];
+  var totalMatches=matches.length;
+  var totalMinutes=matches.reduce(function(a,m){return a+(m.duration_min||0)},0);
+  var gameCount={};
+  matches.forEach(function(m){gameCount[m.game_name]=(gameCount[m.game_name]||0)+1});
+  var topGames=Object.entries(gameCount).sort(function(a,b){return b[1]-a[1]}).slice(0,6);
+  var maxGameCount=topGames[0]?topGames[0][1]:1;
+
+  var navItems=[['overview','Resumen','\u25C7'],['matches','Partidas','\u2694'],['players','Jugadores','\u2605'],['games','Inventario','\u265F']];
+
+  function navBtn(k,label,ic){
+    return e('button',{key:k,onClick:function(){setView(k);setSideOpen(false)},style:{padding:'10px 12px',borderRadius:4,
+      background:view===k?'rgba(217,179,90,0.15)':'transparent',color:view===k?theme.gold:'rgba(244,236,216,0.6)',
+      fontSize:13,fontWeight:600,cursor:'pointer',border:'none',textAlign:'left',display:'flex',gap:10,alignItems:'center',fontFamily:T.sans,letterSpacing:.3}},
+      e('span',{style:{width:14,color:theme.gold,opacity:view===k?1:.4}},ic),label);
+  }
+
+  var sidebar=e('aside',{style:{background:theme.deep,color:theme.gold,padding:'24px 18px',display:'flex',flexDirection:'column',gap:24,
+    minHeight:'100vh',width:240,boxSizing:'border-box',flexShrink:0}},
+    e('div',{style:{display:'flex',alignItems:'center',gap:10}},
+      e(DragonMark,{size:36,color:theme.gold,accent:theme.accent,fire:theme.fire}),
+      e('div',null,
+        e('div',{style:{fontFamily:T.display,fontSize:16,fontStyle:'italic',fontWeight:500,color:theme.gold,lineHeight:1}},'El Dragon'),
+        e('div',{style:{fontFamily:T.sans,fontSize:9,fontWeight:700,letterSpacing:1.4,opacity:.6,marginTop:2}},'ADMIN PANEL'),
+      ),
+    ),
+    e('nav',{style:{display:'flex',flexDirection:'column',gap:2}},navItems.map(function(n){return navBtn(n[0],n[1],n[2])})),
+    e('div',{style:{marginTop:'auto',padding:'12px',background:'rgba(0,0,0,0.25)',borderRadius:4}},
+      e('div',{style:{fontFamily:T.mono,fontSize:9,color:'rgba(217,179,90,0.5)',textTransform:'uppercase',letterSpacing:1.4}},'Modo'),
+      e('div',{style:{fontSize:12,fontWeight:600,color:theme.gold,marginTop:2}},Api.mode()==='live'?'\u25CF Conectado':'\u25CB Demo'),
+      e('button',{onClick:onLogout,style:{background:'none',border:'none',color:'rgba(244,236,216,0.5)',fontFamily:T.sans,fontSize:11,marginTop:10,cursor:'pointer',padding:0,textTransform:'uppercase',letterSpacing:1}},'Salir'),
+    ),
+  );
+
+  // Mobile: hamburger + overlay sidebar
+  var mobileHeader=e('div',{style:{display:'none',padding:'12px 16px',background:theme.deep,color:theme.gold,alignItems:'center',justifyContent:'space-between',
+    position:'sticky',top:0,zIndex:10},className:'dash-mobile-header'},
+    e('div',{style:{display:'flex',alignItems:'center',gap:8}},
+      e(DragonMark,{size:28,color:theme.gold,accent:theme.accent,fire:theme.fire}),
+      e('span',{style:{fontFamily:T.display,fontSize:14,fontStyle:'italic',fontWeight:500}},'El Dragon Admin'),
+    ),
+    e('button',{onClick:function(){setSideOpen(!sideOpen)},style:{background:'none',border:'none',color:theme.gold,fontSize:22,cursor:'pointer',padding:'4px 8px'}},'\u2630'),
+  );
+
+  var overlay=sideOpen?e('div',{style:{position:'fixed',inset:0,zIndex:100,display:'flex'}},
+    e('div',{onClick:function(){setSideOpen(false)},style:{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'relative',zIndex:1}},sidebar),
+  ):null;
+
+  var mainContent=e('main',{style:{flex:1,overflowY:'auto',padding:'32px 36px',minWidth:0},className:'dash-main'},
+    view==='overview'&&e('div',null,
+      e('div',{style:{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'flex-end',marginBottom:28,gap:12}},
+        e('div',null,
+          e('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:2,color:theme.gold}},'\u25C6 Cronica del reino \u25C6'),
+          e('h1',{style:{fontFamily:T.display,fontSize:44,fontWeight:500,fontStyle:'italic',margin:'6px 0 0',letterSpacing:-1,lineHeight:1.05}},
+            'Resumen ',e('span',{style:{color:theme.accent}},'de la semana')),
+        ),
+      ),
+      e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:24}},
+        [['Partidas',totalMatches],['Jugadores',players.length],['Horas',Math.round(totalMinutes/60)],['Juegos en uso',Object.keys(gameCount).length]].map(function(arr){
+          return e('div',{key:arr[0],style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:20,position:'relative',overflow:'hidden'}},
+            e('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.2,color:theme.inkMuted}},arr[0]),
+            e('div',{style:{fontFamily:T.display,fontSize:44,color:theme.ink,marginTop:4,letterSpacing:-1,lineHeight:1,fontStyle:'italic',fontWeight:500}},arr[1]),
+          );
+        }),
+      ),
+      e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:18}},
+        e('section',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:24}},
+          e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:16}},
+            e('h2',{style:{fontFamily:T.display,fontSize:24,margin:0,fontStyle:'italic',fontWeight:500}},'Liga del ',e('span',{style:{color:theme.accent}},'Dragon')),
+            e('span',{style:{fontFamily:T.mono,fontSize:10,color:theme.inkMuted,textTransform:'uppercase',letterSpacing:1}},'por victorias'),
+          ),
+          players.slice().sort(function(a,b){return b.wins-a.wins}).slice(0,7).map(function(p,i){
+            return e('div',{key:p.id,style:{display:'grid',gridTemplateColumns:'24px 32px 1fr auto auto',gap:12,alignItems:'center',padding:'10px 0',
+              borderBottom:i<6?'1px solid '+theme.lineSoft:'none'}},
+              e('div',{style:{fontFamily:T.display,fontSize:16,fontStyle:'italic',color:i===0?theme.gold:theme.inkMuted,fontWeight:600}},i+1),
+              e('div',{style:{width:30,height:30,borderRadius:'50%',background:theme.chip,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}},p.avatar_emoji),
+              e('div',{style:{fontFamily:T.display,fontSize:17,color:theme.ink,fontStyle:'italic',fontWeight:500}},p.display_name||p.username),
+              e('div',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkSoft}},p.matches_played+' part.'),
+              e('div',{style:{fontFamily:T.display,fontSize:22,color:theme.accent,letterSpacing:-.5,minWidth:40,textAlign:'right',fontStyle:'italic',fontWeight:500}},p.wins),
+            );
+          }),
+        ),
+        e('section',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:24}},
+          e('h2',{style:{fontFamily:T.display,fontSize:24,margin:'0 0 16px',fontStyle:'italic',fontWeight:500}},'Mas jugados'),
+          topGames.map(function(tg){
+            return e('div',{key:tg[0],style:{marginBottom:12}},
+              e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:4}},
+                e('span',{style:{fontFamily:T.display,fontSize:14,fontStyle:'italic',color:theme.ink}},tg[0]),
+                e('span',{style:{fontFamily:T.mono,fontSize:10,color:theme.inkMuted}},tg[1]),
+              ),
+              e('div',{style:{height:4,background:theme.lineSoft,borderRadius:2,overflow:'hidden'}},
+                e('div',{style:{width:(tg[1]/maxGameCount*100)+'%',height:'100%',background:theme.accent}})),
+            );
+          }),
+        ),
+      ),
+      e('section',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:24,marginTop:18}},
+        e('h2',{style:{fontFamily:T.display,fontSize:24,margin:'0 0 12px',fontStyle:'italic',fontWeight:500}},'Cronicas recientes'),
+        e('div',{style:{overflowX:'auto'}},
+          e('div',{style:{display:'grid',gridTemplateColumns:'1.4fr 1.6fr 0.8fr 0.6fr 1fr',gap:12,padding:'8px 0',borderBottom:'1px solid '+theme.line,minWidth:500}},
+            ['Juego','Jugadores','Cuando','Min','Ganador'].map(function(h){
+              return e('div',{key:h,style:{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:1.4,color:theme.inkMuted}},h);
+            }),
+          ),
+          matches.slice(0,8).map(function(m){
+            return e('div',{key:m.id,style:{display:'grid',gridTemplateColumns:'1.4fr 1.6fr 0.8fr 0.6fr 1fr',gap:12,padding:'12px 0',borderBottom:'1px solid '+theme.lineSoft,alignItems:'center',minWidth:500}},
+              e('div',{style:{fontFamily:T.display,fontSize:16,fontStyle:'italic',color:theme.ink}},m.game_name),
+              e('div',{style:{fontSize:12,color:theme.inkSoft}},(m.players||[]).join(' \u00B7 ')),
+              e('div',{style:{fontFamily:T.mono,fontSize:10,color:theme.inkMuted}},new Date(m.played_at).toLocaleDateString('es',{day:'numeric',month:'short'})),
+              e('div',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkSoft}},m.duration_min||'\u2014'),
+              e('div',null,m.winner?e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner):e('span',{style:{color:theme.inkMuted,fontSize:11}},'\u2014')),
+            );
+          }),
+        ),
+      ),
+    ),
+    view==='matches'&&e(SimpleList,{theme:theme,title:'Todas las partidas',
+      items:matches.map(function(m){return{id:m.id,primary:m.game_name,secondary:(m.players||[]).join(' \u00B7 '),meta:new Date(m.played_at).toLocaleDateString('es'),tag:m.winner}})}),
+    view==='players'&&e(SimpleList,{theme:theme,title:'Jugadores',
+      items:players.map(function(p){return{id:p.id,primary:p.display_name||p.username,secondary:'@'+p.username,meta:p.matches_played+' partidas',tag:p.wins+' \u{1F3C6}'}})}),
+    view==='games'&&e(SimpleList,{theme:theme,title:'Inventario',
+      items:games.map(function(g2){return{id:g2.id,primary:g2.name,secondary:g2.min_players+'\u2013'+g2.max_players+' jug \u00B7 ~'+(g2.avg_duration||'\u2014')+' min',meta:g2.category,tag:g2.available===false?'PRESTADO':'DISPONIBLE'}})}),
+  );
+
+  return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',background:theme.bg,color:theme.ink,fontFamily:T.sans}},
+    // Inject responsive CSS
+    e('style',null,
+      '@media(min-width:769px){.dash-mobile-header{display:none !important}.dash-desktop-sidebar{display:flex !important}.dash-wrapper{display:grid !important;grid-template-columns:240px 1fr !important}}'+
+      '@media(max-width:768px){.dash-mobile-header{display:flex !important}.dash-desktop-sidebar{display:none !important}.dash-wrapper{display:block !important}.dash-main{padding:20px 16px !important}}'),
+    mobileHeader,
+    overlay,
+    e('div',{className:'dash-wrapper',style:{display:'grid',gridTemplateColumns:'240px 1fr',overflow:'hidden',minHeight:'100vh'}},
+      e('div',{className:'dash-desktop-sidebar',style:{display:'flex'}},sidebar),
+      mainContent,
+    ),
+  );
+}
+
+// ─── Supabase Config ────────────────────────────────────────
+var SCHEMA_SQL='-- Pega esto en Supabase > SQL Editor > New query\n-- (script completo en supabase-schema.sql del proyecto)\n\ncreate table if not exists players (\n  id uuid primary key default gen_random_uuid(),\n  username text unique not null, display_name text,\n  avatar_emoji text default \'\\u{1F409}\', pin_hash text,\n  created_at timestamptz default now()\n);\n\ncreate table if not exists games (\n  id uuid primary key default gen_random_uuid(),\n  name text unique not null, min_players int default 2, max_players int default 4,\n  avg_duration int, category text, available boolean default true,\n  created_at timestamptz default now()\n);\n\ncreate table if not exists matches (\n  id uuid primary key default gen_random_uuid(),\n  game_id uuid not null references games(id),\n  played_at timestamptz default now(), duration_min int,\n  difficulty int check (difficulty between 1 and 5),\n  winner_id uuid references players(id), notes text,\n  created_by uuid references players(id),\n  created_at timestamptz default now()\n);\n\ncreate table if not exists match_players (\n  match_id uuid references matches(id) on delete cascade,\n  player_id uuid references players(id), score int,\n  primary key (match_id, player_id)\n);\n\ncreate or replace view player_stats as\n  select p.id, p.username, p.display_name, p.avatar_emoji,\n    count(distinct mp.match_id) as matches_played,\n    count(distinct case when m.winner_id = p.id then m.id end) as wins,\n    coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes\n  from players p\n  left join match_players mp on mp.player_id = p.id\n  left join matches m on m.id = mp.match_id\n  group by p.id;\n\nalter table players enable row level security;\nalter table games enable row level security;\nalter table matches enable row level security;\nalter table match_players enable row level security;\n\ncreate policy "all" on players for all using (true) with check (true);\ncreate policy "all" on games for all using (true) with check (true);\ncreate policy "all" on matches for all using (true) with check (true);\ncreate policy "all" on match_players for all using (true) with check (true);\n\ninsert into games (name, min_players, max_players, avg_duration, category) values\n  (\'Catan\', 3, 4, 90, \'estrategia\'),\n  (\'Carcassonne\', 2, 5, 45, \'familiar\'),\n  (\'Wingspan\', 1, 5, 70, \'estrategia\'),\n  (\'Codenames\', 4, 8, 20, \'party\'),\n  (\'Azul\', 2, 4, 35, \'familiar\'),\n  (\'Harmonies\', 2, 4, 35, \'familiar\'),\n  (\'Orleans\', 2, 4, 90, \'estrategia\')\non conflict (name) do nothing;';
+
+function SupabaseConfig({theme,onChanged,onClose}){
+  var stored=getStoredCreds();
+  var _u=useState(stored?stored.url:''),url=_u[0],setUrl=_u[1];
+  var _k=useState(stored?stored.key:''),key=_k[0],setKey=_k[1];
+  var _ss=useState(false),showSql=_ss[0],setShowSql=_ss[1];
+  var _st=useState(stored?'connected':'disconnected'),status=_st[0],setStatus=_st[1];
+  var _t=useState(false),testing=_t[0],setTesting=_t[1];
+
+  async function test(){
+    if(!url||!key)return;setTesting(true);setStatus('testing');
+    try{
+      var r=await fetch(url+'/rest/v1/games?select=id&limit=1',{headers:{apikey:key,Authorization:'Bearer '+key}});
+      if(r.ok){setStoredCreds({url:url,key:key});setStatus('connected');onChanged&&onChanged()}
+      else{setStatus('error')}
+    }catch(e2){setStatus('error')}finally{setTesting(false)}
+  }
+  function disconnect(){setStoredCreds(null);Api._client=null;setUrl('');setKey('');setStatus('disconnected');onChanged&&onChanged()}
+
+  return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',overflow:'auto',background:theme.bg,color:theme.ink,fontFamily:T.sans,padding:'40px 36px'}},
+    e('div',{style:{maxWidth:720,margin:'0 auto'}},
+      onClose&&e('button',{onClick:onClose,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0,marginBottom:24}},'\u2190 Volver'),
+      e('div',{style:{display:'flex',alignItems:'center',gap:14,marginBottom:8,flexWrap:'wrap'}},
+        e(DragonMark,{size:48,color:theme.deep,accent:theme.accent,fire:theme.fire}),
+        e('div',null,
+          e('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:2,color:theme.gold}},'\u25C6 Configuracion \u25C6'),
+          e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',margin:'4px 0 0',letterSpacing:-.8}},
+            'Conectar a ',e('span',{style:{color:theme.accent}},'Supabase')),
+        ),
+      ),
+      e('p',{style:{fontSize:14,color:theme.inkSoft,lineHeight:1.55,margin:'16px 0 28px',maxWidth:560}},
+        'Pega el ',e('strong',null,'Project URL'),' y la ',e('strong',null,'anon key'),'. Se guardan en ',
+        e('code',{style:{fontFamily:T.mono,fontSize:12,background:theme.chip,padding:'2px 6px',borderRadius:3}},'localStorage'),'.'),
+      e('div',{style:{padding:'14px 18px',borderRadius:6,marginBottom:24,
+        background:status==='connected'?theme.deep:theme.surface,color:status==='connected'?theme.gold:theme.ink,
+        border:'1px solid '+(status==='connected'?theme.gold:theme.line),display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}},
+        e('div',null,
+          e('div',{style:{fontSize:13,fontWeight:700,textTransform:'uppercase',letterSpacing:1}},
+            status==='connected'&&'\u25CF Conectado',status==='testing'&&'\u25CC Probando\u2026',
+            status==='error'&&'\u2715 No pude conectar \u2014 revisa URL y key',status==='disconnected'&&'\u25CB Modo demo (datos en memoria)'),
+        ),
+        status==='connected'&&e(Btn,{theme:theme,variant:'ghost',onClick:disconnect},'Desconectar'),
+      ),
+      e(Field,{label:'Project URL',theme:theme,hint:'ej. https://abcd1234.supabase.co'},
+        e(Input,{theme:theme,value:url,onChange:function(ev){setUrl(ev.target.value)},placeholder:'https://xxxxx.supabase.co'})),
+      e(Field,{label:'Anon (public) key',theme:theme,hint:'La anon key \u2014 NO la service_role'},
+        e(Input,{theme:theme,value:key,onChange:function(ev){setKey(ev.target.value)},placeholder:'eyJhbGc\u2026',type:'password'})),
+      e('div',{style:{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}},
+        e(Btn,{theme:theme,variant:'dark',onClick:test,style:{padding:'12px 24px'}},testing?'Probando\u2026':'Conectar'),
+        e(Btn,{theme:theme,variant:'ghost',onClick:function(){setShowSql(!showSql)}},showSql?'\u2191 Ocultar SQL':'\u2193 Ver script SQL'),
+      ),
+      showSql&&e('div',{style:{marginTop:24}},
+        e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8,flexWrap:'wrap',gap:8}},
+          e('h3',{style:{fontFamily:T.display,fontSize:22,margin:0,fontStyle:'italic',fontWeight:500}},'Script de inicializacion'),
+          e('button',{onClick:function(){navigator.clipboard.writeText(SCHEMA_SQL)},style:{background:theme.deep,border:'none',color:theme.gold,
+            fontFamily:T.sans,fontSize:11,fontWeight:700,padding:'8px 14px',borderRadius:4,cursor:'pointer',textTransform:'uppercase',letterSpacing:1}},'Copiar'),
+        ),
+        e('p',{style:{fontSize:12,color:theme.inkSoft,marginBottom:10}},'En Supabase: ',e('strong',null,'SQL Editor \u2192 New query'),', pega y ejecuta.'),
+        e('pre',{style:{background:theme.deep,color:theme.gold,borderRadius:6,padding:16,fontFamily:T.mono,fontSize:11,lineHeight:1.55,maxHeight:360,overflow:'auto',margin:0,whiteSpace:'pre-wrap'}},SCHEMA_SQL),
+      ),
+      e('div',{style:{marginTop:32}},
+        e('h3',{style:{fontFamily:T.display,fontSize:22,margin:'0 0 12px',fontStyle:'italic',fontWeight:500}},'Pasos'),
+        e('ol',{style:{fontSize:14,color:theme.inkSoft,lineHeight:1.7,paddingLeft:20,margin:0}},
+          e('li',null,'Crea un proyecto en ',e('a',{href:'https://supabase.com',target:'_blank',style:{color:theme.accent}},'supabase.com')),
+          e('li',null,'Copia el script SQL y ejecutalo en el SQL Editor'),
+          e('li',null,'Ve a ',e('strong',null,'Settings \u2192 API'),', copia Project URL + anon public key'),
+          e('li',null,'Pega los valores arriba y dale a "Conectar"'),
+        ),
+      ),
+    ),
+  );
+}
+
+// ─── Routing ────────────────────────────────────────────────
+function getRoute(){
+  var clean=function(v){return(v||'').toLowerCase().replace(/^#\/?/,'').replace(/^\/+|\/+$/g,'')};
+  var pathParts=clean(window.location.pathname).split('/').filter(Boolean);
+  var path=pathParts[pathParts.length-1]||'';
+  var h=clean(window.location.hash);
+  var q=new URLSearchParams(window.location.search);
+  if(path==='admin'||h==='admin'||q.has('admin'))return'admin';
+  if(path==='ranking'||h==='ranking'||q.has('ranking'))return'ranking';
+  if(path==='config'||h==='config'||q.has('config'))return'config';
+  return'app';
+}
+function goTo(route){
+  var target=route==='app'?'/':'/'+route;
+  window.history.pushState(null,'',target);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+// ─── App ────────────────────────────────────────────────────
+function App(){
+  var _m=useState('light'),mode=_m[0],setMode=_m[1];
+  var theme=mode==='dark'?T.dark:T.light;
+  var _r=useState(getRoute()),route=_r[0],setRoute=_r[1];
+  var _a=useState(false),adminOk=_a[0],setAdminOk=_a[1];
+  var _g=useState([]),games=_g[0],setGames=_g[1];
+  var _p=useState([]),players=_p[0],setPlayers=_p[1];
+  var _ma=useState([]),matches=_ma[0],setMatches=_ma[1];
+  var _b=useState([]),badges=_b[0],setBadges=_b[1];
+  var _rk=useState(0),reloadKey=_rk[0],setReloadKey=_rk[1];
+
+  useEffect(function(){
+    Promise.all([Api.listGames(),Api.listPlayers(),Api.listMatches(),Api.listBadges()])
+      .then(function(res){setGames(res[0]);setPlayers(res[1]);setMatches(res[2]);setBadges(res[3])});
+  },[reloadKey]);
+
+  useEffect(function(){
+    var h=function(){setRoute(getRoute())};
+    window.addEventListener('hashchange',h);window.addEventListener('popstate',h);
+    return function(){window.removeEventListener('hashchange',h);window.removeEventListener('popstate',h)};
+  },[]);
+
+  useEffect(function(){document.body.style.background=theme.bg},[theme]);
+
+  var refresh=function(){setReloadKey(function(k){return k+1})};
+
+  // Mobile app wrapper
+  function MobileApp(){
+    var _u=useState(function(){return getStoredUser()}),user=_u[0],setUser=_u[1];
+    var _s=useState(user?'home':'login'),screen=_s[0],setScreen=_s[1];
+    var _am=useState(null),activeMatch=_am[0],setActiveMatch=_am[1];
+
+    var wrap=function(children){
+      return e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg,boxShadow:'0 0 60px rgba(0,0,0,0.06)'}},children);
+    };
+
+    if(screen==='login')return wrap(e(MobileLogin,{theme:theme,onLogin:function(p){setUser(p);setScreen('home');refresh()}}));
+    if(screen==='home')return wrap(e(MobileHome,{theme:theme,user:user,matches:matches,players:players,
+      onNew:function(){setScreen('new')},onProfile:function(){setScreen('profile')},
+      onCatalog:function(){setScreen('catalog')},onRanking:function(){setScreen('ranking')},
+      onMatch:function(m){setActiveMatch(m);setScreen('match')}}));
+    if(screen==='new')return wrap(e(MobileNewMatch,{theme:theme,user:user,games:games,players:players,
+      onCancel:function(){setScreen('home')},onSaved:function(){refresh();setScreen('home')}}));
+    if(screen==='catalog')return wrap(e(MobileCatalog,{theme:theme,games:games,onBack:function(){setScreen('home')}}));
+    if(screen==='profile')return wrap(e(MobileProfile,{theme:theme,user:user,players:players,badges:badges,matches:matches,
+      onBack:function(){setScreen('home')},onLogout:function(){setStoredUser(null);setUser(null);setScreen('login')}}));
+    if(screen==='ranking')return wrap(e(MobileRanking,{theme:theme,players:players,onBack:function(){setScreen('home')}}));
+    if(screen==='match'&&activeMatch)return wrap(e(MobileMatchDetail,{theme:theme,match:activeMatch,onBack:function(){setScreen('home')}}));
+    return null;
+  }
+
+  // Theme toggle (floating)
+  var themeToggle=e('button',{onClick:function(){setMode(mode==='light'?'dark':'light')},
+    style:{position:'fixed',bottom:16,right:16,zIndex:1000,width:40,height:40,borderRadius:'50%',
+      background:theme.deep,color:theme.gold,border:'1px solid '+theme.gold,cursor:'pointer',fontSize:16,
+      display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}},
+    mode==='light'?'\u{1F319}':'\u2600\uFE0F');
+
+  if(route==='admin'){
+    if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle);
+    return e('div',null,e(Dashboard,{theme:theme,players:players,matches:matches,games:games,
+      onLogout:function(){setAdminOk(false);goTo('app')}}),themeToggle);
+  }
+  if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle);
+  if(route==='ranking')return e('div',null,
+    e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg}},
+      e(MobileRanking,{theme:theme,players:players,onBack:function(){goTo('app')}})),themeToggle);
+  return e('div',null,e(MobileApp,null),themeToggle);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 -- ════════════════════════════════════════════════════════════════
---  EL DRAGÓN BG&G — Esquema Supabase
---  Cafetería de juegos de mesa · Registro de partidas
+--  EL DRAGON BG&G — Esquema Supabase
+--  Cafeteria de juegos de mesa - Registro de partidas
 -- ════════════════════════════════════════════════════════════════
 --  Ejecuta en: Supabase → SQL Editor → New query
 -- ════════════════════════════════════════════════════════════════
@@ -15,7 +15,7 @@ create table if not exists players (
   created_at   timestamptz default now()
 );
 
--- 2. Catálogo de juegos
+-- 2. Catalogo de juegos
 create table if not exists games (
   id            uuid primary key default gen_random_uuid(),
   name          text unique not null,
@@ -61,9 +61,9 @@ create table if not exists player_badges (
 );
 
 insert into badges (id, name, description, emoji) values
-  ('first_match', 'Primera partida',  'Tu primera crónica',                      '🎲'),
+  ('first_match', 'Primera partida',  'Tu primera cronica',                      '🎲'),
   ('first_win',   'Primera victoria', 'Tu primer triunfo en la liga',            '🏆'),
-  ('marathon',    'Maratonista',      'Una partida de más de 3 horas',           '⏰'),
+  ('marathon',    'Maratonista',      'Una partida de mas de 3 horas',           '⏰'),
   ('explorer',    'Explorador',       'Probaste 10 juegos diferentes',           '🧭'),
   ('regular',     'Habitual',         '25 partidas registradas',                 '☕'),
   ('strategist',  'Estratega',        '5 victorias en juegos de estrategia',     '♟️')
@@ -105,7 +105,7 @@ create policy "read"   on badges        for select using (true);
 create policy "read"   on player_badges for select using (true);
 create policy "insert" on player_badges for insert with check (true);
 
--- 8. Seed: catálogo inicial de El Dragón
+-- 8. Seed: catalogo inicial de El Dragon
 insert into games (name, min_players, max_players, avg_duration, category) values
   ('Catan',          3, 4, 90, 'estrategia'),
   ('Carcassonne',    2, 5, 45, 'familiar'),

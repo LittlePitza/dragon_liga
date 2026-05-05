@@ -1,142 +1,102 @@
-# 🐉 El Dragón — Guía de uso
+# El Dragon — Guia de uso
 
-App para registrar partidas de juegos de mesa en El Dragón Board Games & Grill.
-
----
-
-## 📱 Primer arranque (modo demo)
-
-Abre `El Dragon.html` en cualquier navegador. La app arranca en **modo demo** con datos de ejemplo (6 jugadores, 7 partidas, 8 juegos). Puedes probar todo el flujo sin configurar nada.
-
-> El logo del Dragón (medallón circular con "D" dorada) confirma que estás en la app correcta.
+App para registrar partidas de juegos de mesa en El Dragon Board Games & Grill.
 
 ---
 
-## 🎲 Para jugadores (móvil)
+## Primer arranque (modo demo)
+
+Abre `index.html` en cualquier navegador. La app arranca en modo demo con datos de ejemplo (6 jugadores, 7 partidas, 8 juegos). Puedes probar todo el flujo sin configurar nada.
+
+---
+
+## Para jugadores (movil)
 
 ### 1. Login con PIN
-- Escribe tu **nombre o apodo** (ej. *Mara*) y elige un **avatar** (emoji)
-- Si es la primera vez → te pide **crear un PIN** de 4-6 dígitos
-- Si ya existías → te pide tu PIN para entrar
-
-> 🔒 Tu PIN se guarda hasheado (SHA-256). No se guarda en texto plano.
+- Escribe tu nombre o apodo y elige un avatar (emoji)
+- Si es la primera vez, te pide crear un PIN de 4-6 digitos
+- Si ya existias, te pide tu PIN para entrar
+- Tu PIN se guarda hasheado (SHA-256). No se guarda en texto plano.
 
 ### 2. Pantalla principal (Home)
-- **Botón grande "Registrar partida"** — el flujo principal, toma 20 segundos
-- **Crónicas recientes** — toca cualquiera para ver el detalle (ganador, duración, dificultad, notas)
-- **Ranking** y **Catálogo** en accesos rápidos
-- Tu avatar arriba a la derecha → abre tu **perfil**
+- Boton grande "Registrar partida" — el flujo principal, toma 20 segundos
+- Cronicas recientes — toca cualquiera para ver el detalle
+- Ranking y Catalogo en accesos rapidos
+- Tu avatar arriba a la derecha abre tu perfil
 
 ### 3. Registrar una partida (2 pasos)
-
-**Paso 1 — Juego:**
-- Busca por nombre, o agrega uno nuevo con `+ Agregar "..."`
-- Toca el juego en la lista para seleccionarlo
-
-**Paso 2 — Detalles:**
-- Solo el juego es obligatorio
-- Opcionales: cuándo, duración (min), dificultad ★, jugadores, ganador, notas/anécdota
-
-> Pro tip: las **notas** se renderan como cita en cursiva — ideal para anécdotas memorables ("remontó al final", "ganó por suerte con un 12").
+- Paso 1: Busca el juego por nombre, o agrega uno nuevo con "+ Agregar"
+- Paso 2: Detalles opcionales (cuando, duracion, dificultad, jugadores, ganador, notas)
 
 ### 4. Tu perfil
-Avatar grande, stats (partidas / victorias / horas), logros desbloqueados (los grises se desbloquean automáticamente), compañeros frecuentes.
+Avatar, stats (partidas/victorias/horas), logros desbloqueados, companeros frecuentes.
 
 ### 5. Ranking
-Lista pública ordenada por victorias. Top 3 con colores de medalla (oro, plata, bronce).
+Lista publica ordenada por victorias. Top 3 con colores de medalla.
 
 ---
 
-## 🛡️ Para el dueño (admin)
+## Para el dueno (admin)
 
-### Ruta `?admin` o `#admin`
-- Primera vez → **crea un PIN** de admin (queda guardado en este navegador)
-- Veces siguientes → te pide ese PIN
+### Ruta /admin
+- Primera vez: crea un PIN de admin
+- Veces siguientes: te pide ese PIN
 
 ### Vistas del dashboard
-- **Resumen** — KPIs (partidas, jugadores, horas, juegos en uso) + ranking + más jugados + crónicas recientes
-- **Partidas** — listado completo
-- **Jugadores** — todos con sus stats
-- **Inventario** — catálogo con disponibilidad
+- Resumen: KPIs + ranking + mas jugados + cronicas recientes
+- Partidas: listado completo
+- Jugadores: todos con sus stats
+- Inventario: catalogo con disponibilidad
 
-> El indicador en la esquina inferior izquierda dice si estás en **● Conectado** (Supabase real) o **○ Demo** (memoria).
+El dashboard es responsive: en pantallas grandes muestra sidebar lateral, en movil muestra menu hamburguesa.
 
 ---
 
-## 🗄️ Conectar a Supabase (datos reales)
-
-Por defecto, la app usa datos demo en memoria — al recargar, vuelve al estado inicial. Para datos persistentes:
+## Conectar a Supabase (datos reales)
 
 ### 1. Crea un proyecto en Supabase
-- Ve a [supabase.com](https://supabase.com) → New project
-- Anota la **Project URL** y la **anon (public) key** (Settings → API)
+- Ve a supabase.com, crea un nuevo proyecto
+- Anota la Project URL y la anon (public) key
 
 ### 2. Ejecuta el script SQL
-- En tu app, ve a `?config`
-- Click en **"↓ Ver script SQL"** → **Copiar**
-- En Supabase: **SQL Editor → New query** → pega → **Run**
-- Eso crea las tablas: `players`, `games`, `matches`, `match_players`, vistas y políticas
+- En la app, ve a /config
+- Click en "Ver script SQL", copia el contenido
+- En Supabase: SQL Editor, New query, pega y ejecuta
 
 ### 3. Conecta
-- En `?config`, pega URL y anon key → **Conectar**
-- Si todo está bien verás **"● Conectado"**
-- A partir de aquí, todos los registros se guardan en tu base
-
-> Las credenciales se guardan en `localStorage` del navegador. Cada dispositivo se conecta una vez.
+- En /config, pega URL y anon key, dale a "Conectar"
 
 ---
 
-## 🌐 Rutas / URLs
+## Rutas / URLs
 
-| URL | Para quién |
-|---|---|
-| `/` | Jugadores — app móvil |
-| `/admin` | Dueño — dashboard |
-| `/ranking` | Público — ranking compartible |
-| `/config` | Conectar Supabase |
-
-También siguen funcionando las versiones antiguas con query: `?admin`, `?ranking` y `?config`.
+| URL       | Para quien              |
+|-----------|-------------------------|
+| /         | Jugadores — app movil   |
+| /admin    | Dueno — dashboard       |
+| /ranking  | Publico — ranking       |
+| /config   | Conectar Supabase       |
 
 ---
 
-## 🚀 Publicar en Netlify
+## Publicar en Netlify
 
-1. Renombra `El Dragon.html` → `index.html`
-2. Ve a [app.netlify.com/drop](https://app.netlify.com/drop) y arrastra la carpeta
-3. Listo — te da una URL pública
-
----
-
-## 🎨 Tweaks (panel de personalización)
-
-Click en el ícono de tweaks (toolbar) → activa el panel:
-- **Modo:** Pergamino (claro) ↔ Noche (oscuro)
-- **Rutas:** atajos a las 4 vistas
+1. Ve a app.netlify.com/drop y arrastra la carpeta del proyecto
+2. Listo — te da una URL publica
 
 ---
 
-## 🆘 Preguntas comunes
+## Modo claro / oscuro
 
-**¿Olvidé mi PIN.**  
-Por ahora, el reset manual: abre Supabase → tabla `players` → borra esa fila (o el `pin_hash` para reusar el nombre).
-
-**¿Cómo agrego juegos al catálogo?**  
-Desde el flujo de "registrar partida": al buscar un juego que no existe, sale el botón `+ Agregar "..."`.
-
-**¿Puedo cambiar mi PIN o avatar?**  
-En esta versión no hay edición de perfil — me avisas si lo agregamos.
-
-**¿Funciona offline?**  
-La app carga, pero las escrituras necesitan conexión a Supabase. En modo demo funciona offline.
+Boton flotante en la esquina inferior derecha para alternar entre modo Pergamino (claro) y Noche (oscuro).
 
 ---
 
-## 📋 Checklist de lanzamiento
+## Estructura del proyecto
 
-- [ ] Probar el flujo completo en demo
-- [ ] Crear proyecto Supabase + ejecutar script SQL
-- [ ] Conectar la app desde `?config`
-- [ ] Crear el PIN de admin en `?admin`
-- [ ] Cargar el catálogo real de juegos (agregar desde la app)
-- [ ] Subir a Netlify y compartir el QR/URL en el local
-- [ ] (Opcional) Imprimir QR en las mesas
+| Archivo              | Descripcion                        |
+|----------------------|------------------------------------|
+| index.html           | App completa (todo consolidado)    |
+| supabase-schema.sql  | Esquema SQL para Supabase          |
+| _redirects           | Reglas de redireccion para Netlify |
+| GUIA.md              | Este archivo                       |
