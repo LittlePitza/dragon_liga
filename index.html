@@ -27,6 +27,7 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 //  EL DRAGON — App consolidada (produccion)
 // ═══════════════════════════════════════════════════════════════
 
+const APP_VERSION = "2026.05.04.1";
 const e = React.createElement;
 const {useState, useEffect, useMemo, useCallback, useRef} = React;
 
@@ -1130,16 +1131,20 @@ function App(){
       display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}},
     mode==='light'?'\u{1F319}':'\u2600\uFE0F');
 
+  var versionBadge=e('div',{style:{position:'fixed',bottom:12,left:12,zIndex:1000,padding:'4px 8px',borderRadius:999,
+      background:theme.surface,color:theme.inkMuted,border:'1px solid '+theme.line,fontFamily:T.mono,fontSize:10,
+      boxShadow:'0 2px 8px rgba(0,0,0,0.12)',opacity:.82,pointerEvents:'none'}},'v'+APP_VERSION);
+
   if(route==='admin'){
-    if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle);
+    if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle,versionBadge);
     return e('div',null,e(Dashboard,{theme:theme,players:players,matches:matches,games:games,
-      onLogout:function(){setAdminOk(false);goTo('app')},onRefresh:refresh}),themeToggle);
+      onLogout:function(){setAdminOk(false);goTo('app')},onRefresh:refresh}),themeToggle,versionBadge);
   }
-  if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle);
+  if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle,versionBadge);
   if(route==='ranking')return e('div',null,
     e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg}},
-      e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle);
-  return e('div',null,e(MobileApp,null),themeToggle);
+      e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle,versionBadge);
+  return e('div',null,e(MobileApp,null),themeToggle,versionBadge);
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(e(App));

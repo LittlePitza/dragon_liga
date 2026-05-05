@@ -1,0 +1,17 @@
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/admin
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/ranking
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/config
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*
+  Cache-Control: no-cache

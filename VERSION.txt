@@ -1,0 +1,6 @@
+2026.05.04.1
+
+Cambio:
+- Agregado _headers para evitar cache viejo en Netlify/Safari iPhone.
+- Agregada version visible en la app.
+- _redirects mantenido en formato multilinea para SPA.

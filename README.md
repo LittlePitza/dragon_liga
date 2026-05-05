@@ -100,3 +100,11 @@ Boton flotante en la esquina inferior derecha para alternar entre modo Pergamino
 | supabase-schema.sql  | Esquema SQL para Supabase          |
 | _redirects           | Reglas de redireccion para Netlify |
 | GUIA.md              | Este archivo                       |
+
+---
+
+## Cache y actualizaciones en iPhone/Safari
+
+Este proyecto incluye `_headers` para Netlify. La regla evita que `index.html` se quede cacheado en Safari/iPhone, lo que ayuda a que los cambios publicados se vean inmediatamente en nuevas visitas.
+
+Tambien se incluye `VERSION.txt` y una version visible en la esquina inferior izquierda de la app para confirmar que el navegador cargo la version nueva.
