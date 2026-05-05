@@ -165,8 +165,22 @@ function loadSupabaseSDK(){
   if(_sbLoading)return _sbLoading;
   _sbLoading=new Promise(function(resolve,reject){
     var s=document.createElement('script');
-    s.src='https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
-    s.onload=function(){resolve(window.supabase)};s.onerror=reject;document.head.appendChild(s);
+    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+    var timeout=setTimeout(function(){reject(new Error('SDK timeout'))},8000);
+    s.onload=function(){clearTimeout(timeout);resolve(window.supabase)};
+    s.onerror=function(){clearTimeout(timeout);reject(new Error('SDK load failed'))};
+    document.head.appendChild(s);
+  }).catch(function(){
+    // Fallback CDN
+    _sbLoading=null;
+    return new Promise(function(resolve,reject){
+      var s2=document.createElement('script');
+      s2.src='https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+      var timeout2=setTimeout(function(){reject(new Error('Fallback timeout'))},8000);
+      s2.onload=function(){clearTimeout(timeout2);resolve(window.supabase)};
+      s2.onerror=function(){clearTimeout(timeout2);reject(new Error('Fallback failed'))};
+      document.head.appendChild(s2);
+    });
   });
   return _sbLoading;
 }
@@ -223,9 +237,11 @@ var Api={
   _client:null,
   client:async function(){
     var creds=getStoredCreds();if(!creds)return null;
-    var sb=await loadSupabaseSDK();
-    if(!Api._client)Api._client=sb.createClient(creds.url,creds.key);
-    return Api._client;
+    try{
+      var sb=await loadSupabaseSDK();
+      if(!Api._client)Api._client=sb.createClient(creds.url,creds.key);
+      return Api._client;
+    }catch(err){console.warn('[El Dragon] No se pudo cargar Supabase SDK, usando modo demo:',err.message);return null}
   },
   listGames:async function(){
     var c=await Api.client();if(!c)return DEMO_GAMES;
