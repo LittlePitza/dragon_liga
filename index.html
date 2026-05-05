@@ -176,14 +176,15 @@ function getStoredUser(){try{return JSON.parse(localStorage.getItem(USER_KEY)||'
 function setStoredUser(u){u?localStorage.setItem(USER_KEY,JSON.stringify(u)):localStorage.removeItem(USER_KEY)}
 
 var DEMO_GAMES=[
-  {id:'g1',name:'Catan',min_players:3,max_players:4,avg_duration:90,category:'estrategia',available:true},
-  {id:'g2',name:'Carcassonne',min_players:2,max_players:5,avg_duration:45,category:'familiar',available:true},
-  {id:'g3',name:'Wingspan',min_players:1,max_players:5,avg_duration:70,category:'estrategia',available:true},
-  {id:'g4',name:'Codenames',min_players:4,max_players:8,avg_duration:20,category:'party',available:true},
-  {id:'g5',name:'Azul',min_players:2,max_players:4,avg_duration:35,category:'familiar',available:false},
-  {id:'g6',name:'7 Wonders Duel',min_players:2,max_players:2,avg_duration:30,category:'estrategia',available:true},
-  {id:'g7',name:'Dixit',min_players:3,max_players:6,avg_duration:30,category:'party',available:true},
-  {id:'g8',name:'Splendor',min_players:2,max_players:4,avg_duration:30,category:'estrategia',available:true},
+  {id:'g1',name:'Catan',min_players:3,max_players:4,avg_duration:90,category:'estrategia',available:true,approved:true},
+  {id:'g2',name:'Carcassonne',min_players:2,max_players:5,avg_duration:45,category:'familiar',available:true,approved:true},
+  {id:'g3',name:'Wingspan',min_players:1,max_players:5,avg_duration:70,category:'estrategia',available:true,approved:true},
+  {id:'g4',name:'Codenames',min_players:4,max_players:8,avg_duration:20,category:'party',available:true,approved:true},
+  {id:'g5',name:'Azul',min_players:2,max_players:4,avg_duration:35,category:'familiar',available:false,approved:true},
+  {id:'g6',name:'7 Wonders Duel',min_players:2,max_players:2,avg_duration:30,category:'estrategia',available:true,approved:true},
+  {id:'g7',name:'Dixit',min_players:3,max_players:6,avg_duration:30,category:'party',available:true,approved:true},
+  {id:'g8',name:'Splendor',min_players:2,max_players:4,avg_duration:30,category:'estrategia',available:true,approved:true},
+  {id:'g9',name:'Uno (pendiente)',min_players:2,max_players:10,avg_duration:20,category:'party',available:true,approved:false},
 ];
 var DEMO_PLAYERS=[
   {id:'p1',username:'mara',display_name:'Mara',avatar_emoji:'\u{1F98A}',matches_played:18,wins:7,total_minutes:980},
@@ -237,13 +238,17 @@ var Api={
     return r.error?DEMO_PLAYERS:r.data;
   },
   listMatches:async function(limit){
-    limit=limit||30;var c=await Api.client();if(!c)return DEMO_MATCHES;
+    limit=limit||30;var c=await Api.client();if(!c)return DEMO_MATCHES.map(function(m){
+      var g=DEMO_GAMES.find(function(x){return x.id===m.game_id});
+      return Object.assign({},m,{game_approved:g?g.approved!==false:true});
+    });
     var r=await c.from('matches')
-      .select('*, games(name), winner:players!matches_winner_id_fkey(username), match_players(player_id, score, players(username))')
+      .select('*, games(name,approved), winner:players!matches_winner_id_fkey(username), match_players(player_id, score, players(username))')
       .order('played_at',{ascending:false}).limit(limit);
     if(r.error)return DEMO_MATCHES;
     return(r.data||[]).map(function(m){return{
       id:m.id,game_id:m.game_id,game_name:m.games?m.games.name:'\u2014',
+      game_approved:m.games?m.games.approved!==false:true,
       played_at:m.played_at,duration_min:m.duration_min,difficulty:m.difficulty,notes:m.notes,
       winner:m.winner?m.winner.username:null,
       players:(m.match_players||[]).map(function(mp){return mp.players?mp.players.username:null}).filter(Boolean),
@@ -287,9 +292,16 @@ var Api={
   },
   addGame:async function(name,category){
     var c=await Api.client();
-    if(!c)return{id:'g-'+Date.now(),name:name,category:category,min_players:2,max_players:4,avg_duration:30};
-    var r=await c.from('games').insert({name:name,category:category}).select().single();
+    if(!c)return{id:'g-'+Date.now(),name:name,category:category,min_players:2,max_players:4,avg_duration:30,approved:false};
+    var r=await c.from('games').insert({name:name,category:category,approved:false}).select().single();
     if(r.error)throw r.error;return r.data;
+  },
+  approveGame:async function(gameId,approve){
+    var val=approve!==false;
+    var c=await Api.client();
+    if(!c){var g=DEMO_GAMES.find(function(x){return x.id===gameId});if(g)g.approved=val;return{ok:true}}
+    var r=await c.from('games').update({approved:val}).eq('id',gameId);
+    if(r.error)throw r.error;return{ok:true};
   },
 };
 
@@ -607,8 +619,14 @@ function MobileCatalog({theme,games,onBack}){
 }
 
 // ─── Ranking ────────────────────────────────────────────────
-function MobileRanking({theme,players,onBack}){
-  var sorted=players.slice().sort(function(a,b){return b.wins-a.wins});
+function MobileRanking({theme,players,matches,onBack}){
+  // Calcular wins solo de juegos aprobados
+  var approvedWins={};
+  (matches||[]).forEach(function(m){
+    if(m.game_approved!==false&&m.winner){approvedWins[m.winner]=(approvedWins[m.winner]||0)+1}
+  });
+  var ranked=players.map(function(p){return Object.assign({},p,{ranked_wins:approvedWins[p.username]||0})});
+  ranked.sort(function(a,b){return b.ranked_wins-a.ranked_wins});
   return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
     e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',gap:12,borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
       e('button',{onClick:onBack,style:{background:'none',border:'none',color:theme.inkSoft,fontFamily:T.sans,fontSize:13,cursor:'pointer',padding:0}},'\u2190 Atras'),
@@ -617,7 +635,7 @@ function MobileRanking({theme,players,onBack}){
     e('div',{style:{flex:1,overflowY:'auto',padding:'24px 20px 40px'}},
       e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,color:theme.gold,marginBottom:6,textTransform:'uppercase'}},'\u2605 Liga del Dragon \u2605'),
       e('h2',{style:{fontFamily:T.display,fontSize:32,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 24px',letterSpacing:-.5}},'Maestros de la mesa'),
-      sorted.map(function(p,i){
+      ranked.map(function(p,i){
         return e('div',{key:p.id,style:{display:'grid',gridTemplateColumns:'32px 36px 1fr auto',gap:12,alignItems:'center',padding:'12px 0',borderBottom:'1px solid '+theme.lineSoft}},
           e('div',{style:{fontFamily:T.display,fontSize:i<3?24:18,color:i===0?theme.gold:i===1?theme.inkSoft:i===2?theme.fire:theme.inkMuted,fontWeight:500,fontStyle:'italic'}},i+1),
           e('div',{style:{width:32,height:32,borderRadius:'50%',background:theme.chip,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}},p.avatar_emoji),
@@ -625,7 +643,7 @@ function MobileRanking({theme,players,onBack}){
             e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},p.display_name||p.username),
             e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:1}},p.matches_played+' partidas'),
           ),
-          e('div',{style:{fontFamily:T.display,fontSize:24,fontWeight:500,fontStyle:'italic',color:i===0?theme.gold:theme.accent,letterSpacing:-.5}},p.wins),
+          e('div',{style:{fontFamily:T.display,fontSize:24,fontWeight:500,fontStyle:'italic',color:i===0?theme.gold:theme.accent,letterSpacing:-.5}},p.ranked_wins),
         );
       }),
       e('div',{style:{marginTop:24,padding:'16px',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,textAlign:'center'}},
@@ -737,7 +755,68 @@ function SimpleList({theme,title,items}){
   );
 }
 
-function Dashboard({theme,players,matches,games,onLogout}){
+// ─── Games Inventory (admin, con aprobacion) ───────────────
+function GamesInventory({theme,games,onRefresh}){
+  var _busy=useState(null),busyId=_busy[0],setBusyId=_busy[1];
+  var pending=games.filter(function(g){return g.approved===false});
+  var approved=games.filter(function(g){return g.approved!==false});
+
+  async function handleApprove(id,val){
+    setBusyId(id);
+    try{await Api.approveGame(id,val);onRefresh&&onRefresh()}
+    catch(err){alert(err.message||'Error')}
+    finally{setBusyId(null)}
+  }
+
+  function gameRow(g,showActions){
+    var isPending=g.approved===false;
+    return e('div',{key:g.id,style:{display:'flex',flexWrap:'wrap',gap:'8px 16px',padding:'14px 0',alignItems:'center',
+      borderBottom:'1px solid '+theme.lineSoft}},
+      e('div',{style:{flex:'1 1 160px',minWidth:120}},
+        e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},g.name),
+        e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:2}},g.min_players+'\u2013'+g.max_players+' jug \u00B7 ~'+(g.avg_duration||'\u2014')+' min'),
+      ),
+      e('div',{style:{flex:'0 0 auto'}},g.category&&e(Pill,{theme:theme,tone:'outline'},g.category)),
+      e('div',{style:{flex:'0 0 auto'}},
+        g.available===false?e(Pill,{theme:theme,tone:'fire'},'prestado'):
+        isPending?e(Pill,{theme:theme,tone:'fire'},'pendiente'):
+        e(Pill,{theme:theme,tone:'gold'},'aprobado')),
+      showActions&&e('div',{style:{flex:'0 0 auto',display:'flex',gap:6}},
+        isPending?[
+          e(Btn,{key:'a',theme:theme,variant:'dark',onClick:function(){handleApprove(g.id,true)},
+            style:{padding:'6px 14px',fontSize:11}},busyId===g.id?'\u2026':'Aprobar'),
+        ]:[
+          e(Btn,{key:'r',theme:theme,variant:'ghost',onClick:function(){handleApprove(g.id,false)},
+            style:{padding:'6px 14px',fontSize:11,color:theme.accent}},'Revocar'),
+        ],
+      ),
+    );
+  }
+
+  return e('div',null,
+    e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',margin:'0 0 8px',letterSpacing:-.8}},'Inventario'),
+    e('p',{style:{fontFamily:T.sans,fontSize:13,color:theme.inkSoft,margin:'0 0 24px'}},'Los juegos deben ser aprobados para que sus partidas cuenten en el ranking.'),
+
+    pending.length>0&&e('div',{style:{marginBottom:28}},
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,color:theme.fire,marginBottom:12,display:'flex',alignItems:'center',gap:8}},
+        '\u26A0 Pendientes de aprobacion (',pending.length,')'),
+      e('div',{style:{background:theme.surface,border:'1px solid '+theme.fire+'44',borderRadius:6,padding:'4px 20px'}},
+        pending.map(function(g){return gameRow(g,true)}),
+      ),
+    ),
+
+    e('div',null,
+      e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,color:theme.inkMuted,marginBottom:12}},
+        'Juegos aprobados (',approved.length,')'),
+      e('div',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'4px 20px'}},
+        approved.length===0?e('div',{style:{padding:'20px 0',textAlign:'center',fontFamily:T.sans,fontSize:13,color:theme.inkMuted}},'No hay juegos aprobados aun.'):
+        approved.map(function(g){return gameRow(g,true)}),
+      ),
+    ),
+  );
+}
+
+function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
   var _v=useState('overview'),view=_v[0],setView=_v[1];
   var _mob=useState(false),sideOpen=_mob[0],setSideOpen=_mob[1];
   var totalMatches=matches.length;
@@ -746,6 +825,12 @@ function Dashboard({theme,players,matches,games,onLogout}){
   matches.forEach(function(m){gameCount[m.game_name]=(gameCount[m.game_name]||0)+1});
   var topGames=Object.entries(gameCount).sort(function(a,b){return b[1]-a[1]}).slice(0,6);
   var maxGameCount=topGames[0]?topGames[0][1]:1;
+
+  // Calcular victorias solo de juegos aprobados
+  var approvedWins={};
+  matches.forEach(function(m){if(m.game_approved!==false&&m.winner){approvedWins[m.winner]=(approvedWins[m.winner]||0)+1}});
+  var rankedPlayers=players.map(function(p){return Object.assign({},p,{ranked_wins:approvedWins[p.username]||0})});
+  rankedPlayers.sort(function(a,b){return b.ranked_wins-a.ranked_wins});
 
   var navItems=[['overview','Resumen','\u25C7'],['matches','Partidas','\u2694'],['players','Jugadores','\u2605'],['games','Inventario','\u265F']];
 
@@ -811,14 +896,14 @@ function Dashboard({theme,players,matches,games,onLogout}){
             e('h2',{style:{fontFamily:T.display,fontSize:24,margin:0,fontStyle:'italic',fontWeight:500}},'Liga del ',e('span',{style:{color:theme.accent}},'Dragon')),
             e('span',{style:{fontFamily:T.mono,fontSize:10,color:theme.inkMuted,textTransform:'uppercase',letterSpacing:1}},'por victorias'),
           ),
-          players.slice().sort(function(a,b){return b.wins-a.wins}).slice(0,7).map(function(p,i){
+          rankedPlayers.slice(0,7).map(function(p,i){
             return e('div',{key:p.id,style:{display:'grid',gridTemplateColumns:'24px 32px 1fr auto auto',gap:12,alignItems:'center',padding:'10px 0',
               borderBottom:i<6?'1px solid '+theme.lineSoft:'none'}},
               e('div',{style:{fontFamily:T.display,fontSize:16,fontStyle:'italic',color:i===0?theme.gold:theme.inkMuted,fontWeight:600}},i+1),
               e('div',{style:{width:30,height:30,borderRadius:'50%',background:theme.chip,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}},p.avatar_emoji),
               e('div',{style:{fontFamily:T.display,fontSize:17,color:theme.ink,fontStyle:'italic',fontWeight:500}},p.display_name||p.username),
               e('div',{style:{fontFamily:T.mono,fontSize:11,color:theme.inkSoft}},p.matches_played+' part.'),
-              e('div',{style:{fontFamily:T.display,fontSize:22,color:theme.accent,letterSpacing:-.5,minWidth:40,textAlign:'right',fontStyle:'italic',fontWeight:500}},p.wins),
+              e('div',{style:{fontFamily:T.display,fontSize:22,color:theme.accent,letterSpacing:-.5,minWidth:40,textAlign:'right',fontStyle:'italic',fontWeight:500}},p.ranked_wins),
             );
           }),
         ),
@@ -860,8 +945,7 @@ function Dashboard({theme,players,matches,games,onLogout}){
       items:matches.map(function(m){return{id:m.id,primary:m.game_name,secondary:(m.players||[]).join(' \u00B7 '),meta:new Date(m.played_at).toLocaleDateString('es'),tag:m.winner}})}),
     view==='players'&&e(SimpleList,{theme:theme,title:'Jugadores',
       items:players.map(function(p){return{id:p.id,primary:p.display_name||p.username,secondary:'@'+p.username,meta:p.matches_played+' partidas',tag:p.wins+' \u{1F3C6}'}})}),
-    view==='games'&&e(SimpleList,{theme:theme,title:'Inventario',
-      items:games.map(function(g2){return{id:g2.id,primary:g2.name,secondary:g2.min_players+'\u2013'+g2.max_players+' jug \u00B7 ~'+(g2.avg_duration||'\u2014')+' min',meta:g2.category,tag:g2.available===false?'PRESTADO':'DISPONIBLE'}})}),
+    view==='games'&&e(GamesInventory,{theme:theme,games:games,onRefresh:onRefresh}),
   );
 
   return e('div',{style:{width:'100%',minHeight:'100vh',boxSizing:'border-box',background:theme.bg,color:theme.ink,fontFamily:T.sans}},
@@ -1018,7 +1102,7 @@ function App(){
     if(screen==='catalog')return wrap(e(MobileCatalog,{theme:theme,games:games,onBack:function(){setScreen('home')}}));
     if(screen==='profile')return wrap(e(MobileProfile,{theme:theme,user:user,players:players,badges:badges,matches:matches,
       onBack:function(){setScreen('home')},onLogout:function(){setStoredUser(null);setUser(null);setScreen('login')}}));
-    if(screen==='ranking')return wrap(e(MobileRanking,{theme:theme,players:players,onBack:function(){setScreen('home')}}));
+    if(screen==='ranking')return wrap(e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){setScreen('home')}}));
     if(screen==='match'&&activeMatch)return wrap(e(MobileMatchDetail,{theme:theme,match:activeMatch,onBack:function(){setScreen('home')}}));
     return null;
   }
@@ -1033,12 +1117,12 @@ function App(){
   if(route==='admin'){
     if(!adminOk)return e('div',null,e(AdminGate,{theme:theme,onUnlock:function(){setAdminOk(true)}}),themeToggle);
     return e('div',null,e(Dashboard,{theme:theme,players:players,matches:matches,games:games,
-      onLogout:function(){setAdminOk(false);goTo('app')}}),themeToggle);
+      onLogout:function(){setAdminOk(false);goTo('app')},onRefresh:refresh}),themeToggle);
   }
   if(route==='config')return e('div',null,e(SupabaseConfig,{theme:theme,onChanged:refresh,onClose:function(){goTo('app')}}),themeToggle);
   if(route==='ranking')return e('div',null,
     e('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column',background:theme.bg}},
-      e(MobileRanking,{theme:theme,players:players,onBack:function(){goTo('app')}})),themeToggle);
+      e(MobileRanking,{theme:theme,players:players,matches:matches,onBack:function(){goTo('app')}})),themeToggle);
   return e('div',null,e(MobileApp,null),themeToggle);
 }
 

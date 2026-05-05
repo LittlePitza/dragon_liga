@@ -24,6 +24,7 @@ create table if not exists games (
   avg_duration  int,
   category      text,
   available     boolean default true,
+  approved      boolean default true,
   added_by      uuid references players(id),
   created_at    timestamptz default now()
 );
@@ -69,16 +70,17 @@ insert into badges (id, name, description, emoji) values
   ('strategist',  'Estratega',        '5 victorias en juegos de estrategia',     '♟️')
 on conflict (id) do nothing;
 
--- 6. Vista de stats
+-- 6. Vista de stats (solo juegos aprobados cuentan para ranking)
 create or replace view player_stats as
   select
     p.id, p.username, p.display_name, p.avatar_emoji,
     count(distinct mp.match_id) as matches_played,
-    count(distinct case when m.winner_id = p.id then m.id end) as wins,
+    count(distinct case when m.winner_id = p.id and g.approved = true then m.id end) as wins,
     coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes
   from players p
   left join match_players mp on mp.player_id = p.id
   left join matches m on m.id = mp.match_id
+  left join games g on g.id = m.game_id
   group by p.id;
 
 -- 7. RLS
