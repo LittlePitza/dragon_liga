@@ -26,15 +26,15 @@
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-  <script type="text/babel" src="/ios-frame.jsx"></script>
-  <script type="text/babel" src="/design-canvas.jsx"></script>
-  <script type="text/babel" src="/tweaks-panel.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
 
-  <script type="text/babel" src="/supabase-client.jsx"></script>
-  <script type="text/babel" src="/ui-tokens.jsx"></script>
-  <script type="text/babel" src="/mobile-screens.jsx"></script>
-  <script type="text/babel" src="/dashboard.jsx"></script>
-  <script type="text/babel" src="/supabase-config.jsx"></script>
+  <script type="text/babel" src="supabase-client.jsx"></script>
+  <script type="text/babel" src="ui-tokens.jsx"></script>
+  <script type="text/babel" src="mobile-screens.jsx"></script>
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="supabase-config.jsx"></script>
 
   <script type="text/babel" data-presets="react">
     const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -215,119 +215,85 @@
                                             onBack={() => setScreen('home')} onLogout={() => { window.LigaDragon.setStoredUser(null); setScreen('login'); }} />;
       };
 
-      // Aplica el tema al fondo de toda la pagina
+      // Apply theme to canvas page background too
       React.useEffect(() => {
         document.body.style.background = tweaks.mode === 'dark' ? '#16140f' : '#f6f4ef';
       }, [tweaks.mode]);
 
-      const cleanPath = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-      const isAdmin = cleanPath === '/admin' || cleanPath === '/admin.html';
-      const isSetup = cleanPath === '/setup' || cleanPath === '/setup.html';
-
-      const topBarStyle = {
-        width: '100%',
-        maxWidth: 1220,
-        margin: '0 auto 18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        color: theme.text,
-        fontFamily: 'Inter Tight, system-ui, sans-serif'
-      };
-
-      const linkStyle = {
-        color: theme.accent,
-        textDecoration: 'none',
-        fontWeight: 700,
-        fontSize: 14,
-        border: `1px solid ${theme.line}`,
-        borderRadius: 999,
-        padding: '9px 12px',
-        background: theme.card
-      };
-
-      const Tweaks = () => (
-        <TweaksPanel title="Tweaks">
-          <TweakSection title="Apariencia">
-            <TweakRadio label="Modo" value={tweaks.mode}
-              options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
-              onChange={v => setTweak('mode', v)} />
-          </TweakSection>
-          <TweakSection title="Datos">
-            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
-              Modo: <strong>{window.Api.mode() === 'live' ? 'conectado a Supabase' : 'demo (en memoria)'}</strong>.
-            </div>
-          </TweakSection>
-        </TweaksPanel>
-      );
-
-      if (isAdmin) {
-        return (
-          <>
-            <main style={{ minHeight: '100vh', background: theme.bg, padding: 24 }}>
-              <div style={topBarStyle}>
-                <div>
-                  <div style={{ fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', opacity: 0.65 }}>El Dragón</div>
-                  <h1 style={{ margin: '4px 0 0', fontFamily: 'Instrument Serif, Georgia, serif', fontSize: 40, fontWeight: 400 }}>
-                    Admin / Dashboard
-                  </h1>
-                </div>
-                <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <a href="/" style={linkStyle}>Ver jugadores</a>
-                  <a href="/setup" style={linkStyle}>Configurar Supabase</a>
-                </nav>
-              </div>
-              <div style={{ maxWidth: 1220, margin: '0 auto' }}>
-                <window.LDDashboard theme={theme} players={players} matches={matches} games={games} badges={badges} />
-              </div>
-            </main>
-            <Tweaks />
-          </>
-        );
-      }
-
-      if (isSetup) {
-        return (
-          <>
-            <main style={{ minHeight: '100vh', background: theme.bg, padding: 24 }}>
-              <div style={topBarStyle}>
-                <div>
-                  <div style={{ fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', opacity: 0.65 }}>El Dragón</div>
-                  <h1 style={{ margin: '4px 0 0', fontFamily: 'Instrument Serif, Georgia, serif', fontSize: 40, fontWeight: 400 }}>
-                    Configuración de Supabase
-                  </h1>
-                </div>
-                <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <a href="/" style={linkStyle}>Ver jugadores</a>
-                  <a href="/admin" style={linkStyle}>Ver admin</a>
-                </nav>
-              </div>
-              <div style={{ maxWidth: 860, margin: '0 auto' }}>
-                <window.LDSupabase theme={theme} onChanged={refresh} />
-              </div>
-            </main>
-            <Tweaks />
-          </>
-        );
-      }
-
-      // Pagina publica para jugadores
       return (
         <>
-          <main style={{
-            minHeight: '100vh',
-            background: theme.bg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20
-          }}>
-            <div style={{ width: '100%', maxWidth: 430, minHeight: 760, background: theme.bg }}>
-              <MobileApp />
-            </div>
-          </main>
-          <Tweaks />
+          <DesignCanvas>
+            <DCSection id="users" title="Para los jugadores · móvil"
+              subtitle="Flujo completo. Pulsa el icono de expandir de un artboard para verlo a pantalla completa.">
+
+              <DCArtboard id="m-app" label="App interactiva (navega entre pantallas)" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <MobileApp />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-login" label="Login casual" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileLogin theme={theme} onLogin={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-home" label="Home + feed" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileHome theme={theme} user={user} matches={matches}
+                    onNew={() => {}} onProfile={() => {}} onCatalog={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-new" label="Nueva partida" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileNewMatch theme={theme} user={user} games={games} players={players}
+                    onCancel={() => {}} onSaved={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-catalog" label="Catálogo" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileCatalog theme={theme} games={games} onBack={() => {}} />
+                </div>
+              </DCArtboard>
+
+              <DCArtboard id="m-profile" label="Perfil · stats · logros" width={360} height={760}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: theme.bg }}>
+                  <window.LDMobile.MobileProfile theme={theme} user={user} players={players} badges={badges} matches={matches}
+                    onBack={() => {}} onLogout={() => {}} />
+                </div>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="owner" title="Para ti · dashboard"
+              subtitle="Vista desktop. Ranking, KPIs y partidas recientes.">
+              <DCArtboard id="d-main" label="Dashboard del propietario" width={1200} height={780}>
+                <window.LDDashboard theme={theme} players={players} matches={matches} games={games} badges={badges} />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="setup" title="Conexión a Supabase"
+              subtitle="Pega tu URL y anon key. Te dejamos el script SQL listo para copiar.">
+              <DCArtboard id="setup-1" label="Configuración + script SQL" width={820} height={780}>
+                <window.LDSupabase theme={theme} onChanged={refresh} />
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection title="Apariencia">
+              <TweakRadio label="Modo" value={tweaks.mode}
+                options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
+                onChange={v => setTweak('mode', v)} />
+            </TweakSection>
+            <TweakSection title="Datos">
+              <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+                Modo: <strong>{window.Api.mode() === 'live' ? 'conectado a Supabase' : 'demo (en memoria)'}</strong>.
+                Para conectar, abre el artboard "Configuración + script SQL".
+              </div>
+            </TweakSection>
+          </TweaksPanel>
         </>
       );
     }
