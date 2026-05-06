@@ -39,6 +39,7 @@ create table if not exists matches (
   winner_id    uuid references players(id),
   notes        text,
   created_by   uuid references players(id),
+  approved     boolean default false,
   created_at   timestamptz default now()
 );
 
@@ -75,7 +76,7 @@ create or replace view player_stats as
   select
     p.id, p.username, p.display_name, p.avatar_emoji,
     count(distinct mp.match_id) as matches_played,
-    count(distinct case when m.winner_id = p.id and g.approved = true then m.id end) as wins,
+    count(distinct case when m.winner_id = p.id and g.approved = true and m.approved = true then m.id end) as wins,
     coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes
   from players p
   left join match_players mp on mp.player_id = p.id

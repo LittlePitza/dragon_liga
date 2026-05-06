@@ -38,7 +38,7 @@ html,body{margin:0;padding:0;font-family:"Inter Tight",system-ui,sans-serif;heig
 // ═══════════════════════════════════════════════════════════════
 
 // Version de la app. Cambia este valor en cada deploy importante.
-const APP_VERSION = '2026.05.05.5';
+const APP_VERSION = '2026.05.05.6';
 const APP_BUILD = 'optimized';
 
 // Verificador anti-cache para iPhone/Safari.
@@ -279,13 +279,13 @@ var DEMO_PLAYERS=[
   {id:'p6',username:'kike',display_name:'Kike',avatar_emoji:'\u{1F985}',matches_played:7,wins:2,total_minutes:320},
 ];
 var DEMO_MATCHES=[
-  {id:'m1',game_id:'g1',game_name:'Catan',played_at:'2026-05-03T19:30:00',duration_min:95,difficulty:3,winner:'tito',players:['mara','tito','lupita','dani'],notes:'Tito construyo muralla en el ultimo turno'},
-  {id:'m2',game_id:'g4',game_name:'Codenames',played_at:'2026-05-03T17:00:00',duration_min:25,difficulty:2,winner:'mara',players:['mara','rocio','kike','dani']},
-  {id:'m3',game_id:'g3',game_name:'Wingspan',played_at:'2026-05-02T20:00:00',duration_min:75,difficulty:4,winner:'lupita',players:['lupita','tito','mara']},
-  {id:'m4',game_id:'g2',game_name:'Carcassonne',played_at:'2026-05-02T15:30:00',duration_min:50,difficulty:2,winner:'tito',players:['tito','rocio']},
-  {id:'m5',game_id:'g6',game_name:'7 Wonders Duel',played_at:'2026-05-01T21:00:00',duration_min:35,difficulty:3,winner:'lupita',players:['lupita','tito']},
-  {id:'m6',game_id:'g5',game_name:'Azul',played_at:'2026-05-01T18:00:00',duration_min:40,difficulty:2,winner:'rocio',players:['rocio','dani','mara']},
-  {id:'m7',game_id:'g7',game_name:'Dixit',played_at:'2026-04-30T19:00:00',duration_min:30,difficulty:1,winner:'kike',players:['kike','mara','lupita','dani','rocio']},
+  {id:'m1',game_id:'g1',game_name:'Catan',played_at:'2026-05-03T19:30:00',duration_min:95,difficulty:3,winner:'tito',players:['mara','tito','lupita','dani'],notes:'Tito construyo muralla en el ultimo turno',approved:true},
+  {id:'m2',game_id:'g4',game_name:'Codenames',played_at:'2026-05-03T17:00:00',duration_min:25,difficulty:2,winner:'mara',players:['mara','rocio','kike','dani'],approved:true},
+  {id:'m3',game_id:'g3',game_name:'Wingspan',played_at:'2026-05-02T20:00:00',duration_min:75,difficulty:4,winner:'lupita',players:['lupita','tito','mara'],approved:true},
+  {id:'m4',game_id:'g2',game_name:'Carcassonne',played_at:'2026-05-02T15:30:00',duration_min:50,difficulty:2,winner:'tito',players:['tito','rocio'],approved:true},
+  {id:'m5',game_id:'g6',game_name:'7 Wonders Duel',played_at:'2026-05-01T21:00:00',duration_min:35,difficulty:3,winner:'lupita',players:['lupita','tito'],approved:true},
+  {id:'m6',game_id:'g5',game_name:'Azul',played_at:'2026-05-01T18:00:00',duration_min:40,difficulty:2,winner:'rocio',players:['rocio','dani','mara'],approved:false},
+  {id:'m7',game_id:'g7',game_name:'Dixit',played_at:'2026-04-30T19:00:00',duration_min:30,difficulty:1,winner:'kike',players:['kike','mara','lupita','dani','rocio'],approved:false},
 ];
 var DEMO_BADGES=[
   {id:'first_match',name:'Primera partida',emoji:'\u{1F3B2}'},
@@ -326,15 +326,16 @@ var Api={
   listMatches:async function(limit){
     limit=limit||30;var c=await Api.client();if(!c)return DEMO_MATCHES.map(function(m){
       var g=DEMO_GAMES.find(function(x){return x.id===m.game_id});
-      return Object.assign({},m,{game_approved:g?g.approved!==false:true});
+      return Object.assign({},m,{game_approved:g?g.approved!==false:true,match_approved:m.approved!==false});
     });
     var r=await c.from('matches')
-      .select('*, games(name,approved), winner:players!matches_winner_id_fkey(username), match_players(player_id, score, players(username))')
+      .select('id,game_id,played_at,duration_min,difficulty,notes,approved, games(name,approved), winner:players!matches_winner_id_fkey(username), match_players(player_id, score, players(username))')
       .order('played_at',{ascending:false}).limit(limit);
     if(r.error)return DEMO_MATCHES;
     return(r.data||[]).map(function(m){return{
       id:m.id,game_id:m.game_id,game_name:m.games?m.games.name:'\u2014',
       game_approved:m.games?m.games.approved!==false:true,
+      match_approved:m.approved!==false,
       played_at:m.played_at,duration_min:m.duration_min,difficulty:m.difficulty,notes:m.notes,
       winner:m.winner?m.winner.username:null,
       players:(m.match_players||[]).map(function(mp){return mp.players?mp.players.username:null}).filter(Boolean),
@@ -382,6 +383,14 @@ var Api={
     var r=await c.from('games').insert({name:name,category:category,approved:false}).select().single();
     if(r.error)throw r.error;return r.data;
   },
+  approveMatch:async function(matchId,approve){
+    var val=approve!==false;
+    var c=await Api.client();
+    if(!c){var m=DEMO_MATCHES.find(function(x){return x.id===matchId});if(m)m.approved=val;return{ok:true}}
+    var r=await c.from('matches').update({approved:val}).eq('id',matchId);
+    if(r.error)throw r.error;return{ok:true};
+  },
+
   approveGame:async function(gameId,approve){
     var val=approve!==false;
     var c=await Api.client();
@@ -518,7 +527,8 @@ function MobileHome({theme,user,matches,players,onNew,onProfile,onCatalog,onRank
           ),
           e('div',{style:{fontFamily:T.sans,fontSize:12,color:theme.inkSoft,marginTop:4,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
             e('span',null,(m.players||[]).join(' \u00B7 ')),
-            m.winner&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner),
+            m.match_approved===false&&e(Pill,{theme:theme,tone:'fire'},'pendiente'),
+            m.match_approved!==false&&m.winner&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner),
           ),
         );
       }),
@@ -535,6 +545,8 @@ function MobileMatchDetail({theme,match,onBack}){
       e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,color:theme.gold,marginBottom:6,textTransform:'uppercase'}},'Cronica \u00B7 '+fmtDate(match.played_at)),
       e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',color:theme.ink,margin:'0 0 16px',letterSpacing:-.8,lineHeight:1.05}},match.game_name),
       e(Divider,{theme:theme,style:{margin:'20px 0 24px'}}),
+      match.match_approved===false&&e('div',{style:{background:theme.fire,color:'#fff',padding:'12px 16px',borderRadius:6,marginBottom:16,textAlign:'center',fontFamily:T.sans,fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:1}},
+        '\u23F3 Partida pendiente de aprobacion'),
       match.winner&&e('div',{style:{background:theme.deep,color:theme.gold,padding:'20px',borderRadius:6,marginBottom:20,textAlign:'center'}},
         e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,letterSpacing:1.5,opacity:.7}},'GANADOR'),
         e('div',{style:{fontFamily:T.display,fontSize:32,fontStyle:'italic',fontWeight:500,marginTop:4}},'\u{1F3C6} '+match.winner),
@@ -854,6 +866,68 @@ function SimpleList({theme,title,items}){
   );
 }
 
+// ─── MatchesList (admin, aprobacion de partidas) ───────────
+function MatchesList({theme,matches,onRefresh,onError}){
+  var _busy=useState(null),busyId=_busy[0],setBusyId=_busy[1];
+  var _filter=useState('all'),filter=_filter[0],setFilter=_filter[1];
+
+  var filtered=matches.filter(function(m){
+    if(filter==='pending')return m.match_approved===false;
+    if(filter==='approved')return m.match_approved!==false;
+    return true;
+  });
+
+  var pendingCount=matches.filter(function(m){return m.match_approved===false}).length;
+
+  async function handleApprove(id,val){
+    setBusyId(id);
+    try{await Api.approveMatch(id,val);onRefresh&&onRefresh()}
+    catch(x){onError&&onError(x.message||'Error')}
+    finally{setBusyId(null)}
+  }
+
+  return e('div',null,
+    e('div',{style:{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'flex-end',marginBottom:20,gap:12}},
+      e('h1',{style:Object.assign({},sTitle(theme,36))},'Todas las partidas'),
+      pendingCount>0&&e('div',{style:{fontFamily:T.sans,fontSize:12,fontWeight:700,color:theme.fire}},
+        '\u26A0 '+pendingCount+' pendiente'+(pendingCount>1?'s':'')),
+    ),
+    e('div',{style:{display:'flex',gap:6,marginBottom:16}},
+      ['all','pending','approved'].map(function(f){
+        var labels={all:'Todas',pending:'Pendientes',approved:'Aprobadas'};
+        return e('button',{key:f,onClick:function(){setFilter(f)},style:{padding:'6px 14px',borderRadius:999,
+          background:filter===f?theme.deep:'transparent',color:filter===f?theme.gold:theme.inkSoft,
+          border:'1px solid '+(filter===f?theme.deep:theme.line),fontFamily:T.sans,fontSize:11,fontWeight:600,cursor:'pointer',
+          textTransform:'uppercase',letterSpacing:1}},labels[f]);
+      }),
+    ),
+    e('div',{style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'4px 20px'}},
+      filtered.length===0?e('div',{style:{padding:'20px 0',textAlign:'center',fontFamily:T.sans,fontSize:13,color:theme.inkMuted}},'No hay partidas en esta categoria.'):
+      filtered.map(function(m,i){
+        var isPending=m.match_approved===false;
+        return e('div',{key:m.id,style:{display:'flex',flexWrap:'wrap',gap:'8px 16px',padding:'14px 0',alignItems:'center',
+          borderBottom:i<filtered.length-1?'1px solid '+theme.lineSoft:'none',
+          opacity:isPending?.85:1}},
+          e('div',{style:{flex:'1 1 140px',minWidth:100}},
+            e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},m.game_name),
+            e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:2}},(m.players||[]).join(' \u00B7 ')),
+          ),
+          e('div',{style:{flex:'0 0 auto',fontFamily:T.mono,fontSize:10,color:theme.inkMuted}},new Date(m.played_at).toLocaleDateString('es',{day:'numeric',month:'short'})),
+          e('div',{style:{flex:'0 0 auto'}},m.winner?e(Pill,{theme:theme,tone:isPending?'outline':'gold'},'\u{1F3C6} '+m.winner):e('span',{style:{color:theme.inkMuted,fontSize:11}},'\u2014')),
+          e('div',{style:{flex:'0 0 auto'}},
+            isPending?e(Pill,{theme:theme,tone:'fire'},'pendiente'):e(Pill,{theme:theme,tone:'gold'},'aprobada')),
+          e('div',{style:{flex:'0 0 auto',display:'flex',gap:6}},
+            isPending?
+              e(Btn,{theme:theme,variant:'dark',onClick:function(){handleApprove(m.id,true)},style:{padding:'6px 14px',fontSize:11}},busyId===m.id?'\u2026':'Aprobar')
+            :
+              e(Btn,{theme:theme,variant:'ghost',onClick:function(){handleApprove(m.id,false)},style:{padding:'6px 14px',fontSize:11,color:theme.accent}},'Revocar'),
+          ),
+        );
+      }),
+    ),
+  );
+}
+
 // ─── Games Inventory (admin, con aprobacion) ───────────────
 function GamesInventory({theme,games,onRefresh}){
   var _busy=useState(null),busyId=_busy[0],setBusyId=_busy[1];
@@ -982,7 +1056,8 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
         ),
       ),
       e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:24}},
-        [['Partidas',totalMatches],['Jugadores',players.length],['Horas',Math.round(totalMinutes/60)],['Juegos en uso',Object.keys(gameCount).length]].map(function(arr){
+        var pendingMatches=matches.filter(function(m){return m.match_approved===false}).length;
+        [['Partidas',totalMatches],['Pendientes',pendingMatches],['Jugadores',players.length],['Horas',Math.round(totalMinutes/60)]].map(function(arr){
           return e('div',{key:arr[0],style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:20,position:'relative',overflow:'hidden'}},
             e('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.2,color:theme.inkMuted}},arr[0]),
             e('div',{style:{fontFamily:T.display,fontSize:44,color:theme.ink,marginTop:4,letterSpacing:-1,lineHeight:1,fontStyle:'italic',fontWeight:500}},arr[1]),
@@ -1040,8 +1115,7 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
         ),
       ),
     ),
-    view==='matches'&&e(SimpleList,{theme:theme,title:'Todas las partidas',
-      items:matches.map(function(m){return{id:m.id,primary:m.game_name,secondary:(m.players||[]).join(' \u00B7 '),meta:new Date(m.played_at).toLocaleDateString('es'),tag:m.winner}})}),
+    view==='matches'&&e(MatchesList,{theme:theme,matches:matches,onRefresh:onRefresh,onError:onError}),
     view==='players'&&e(SimpleList,{theme:theme,title:'Jugadores',
       items:players.map(function(p){return{id:p.id,primary:p.display_name||p.username,secondary:'@'+p.username,meta:p.matches_played+' partidas',tag:p.wins+' \u{1F3C6}'}})}),
     view==='games'&&e(GamesInventory,{theme:theme,games:games,onRefresh:onRefresh}),
@@ -1058,7 +1132,7 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
 }
 
 // ─── Supabase Config ────────────────────────────────────────
-var SCHEMA_SQL='-- ════════════════════════════════════════════════════════════════\n--  EL DRAGON BG&G — Esquema Supabase\n--  Cafeteria de juegos de mesa - Registro de partidas\n-- ════════════════════════════════════════════════════════════════\n--  Ejecuta en: Supabase → SQL Editor → New query\n-- ════════════════════════════════════════════════════════════════\n\n-- 1. Jugadores\ncreate table if not exists players (\n  id           uuid primary key default gen_random_uuid(),\n  username     text unique not null,\n  display_name text,\n  avatar_emoji text default \'🐉\',\n  pin_hash     text,\n  created_at   timestamptz default now()\n);\n\n-- 2. Catalogo de juegos\ncreate table if not exists games (\n  id            uuid primary key default gen_random_uuid(),\n  name          text unique not null,\n  min_players   int default 2,\n  max_players   int default 4,\n  avg_duration  int,\n  category      text,\n  available     boolean default true,\n  approved      boolean default true,\n  added_by      uuid references players(id),\n  created_at    timestamptz default now()\n);\n\n-- 3. Partidas\ncreate table if not exists matches (\n  id           uuid primary key default gen_random_uuid(),\n  game_id      uuid not null references games(id),\n  played_at    timestamptz not null default now(),\n  duration_min int,\n  difficulty   int check (difficulty between 1 and 5),\n  winner_id    uuid references players(id),\n  notes        text,\n  created_by   uuid references players(id),\n  created_at   timestamptz default now()\n);\n\n-- 4. Participantes\ncreate table if not exists match_players (\n  match_id  uuid references matches(id) on delete cascade,\n  player_id uuid references players(id),\n  score     int,\n  primary key (match_id, player_id)\n);\n\n-- 5. Logros\ncreate table if not exists badges (\n  id text primary key, name text not null, description text, emoji text default \'🏅\'\n);\ncreate table if not exists player_badges (\n  player_id uuid references players(id) on delete cascade,\n  badge_id  text references badges(id),\n  earned_at timestamptz default now(),\n  primary key (player_id, badge_id)\n);\n\ninsert into badges (id, name, description, emoji) values\n  (\'first_match\', \'Primera partida\',  \'Tu primera cronica\',                      \'🎲\'),\n  (\'first_win\',   \'Primera victoria\', \'Tu primer triunfo en la liga\',            \'🏆\'),\n  (\'marathon\',    \'Maratonista\',      \'Una partida de mas de 3 horas\',           \'⏰\'),\n  (\'explorer\',    \'Explorador\',       \'Probaste 10 juegos diferentes\',           \'🧭\'),\n  (\'regular\',     \'Habitual\',         \'25 partidas registradas\',                 \'☕\'),\n  (\'strategist\',  \'Estratega\',        \'5 victorias en juegos de estrategia\',     \'♟️\')\non conflict (id) do nothing;\n\n-- 6. Vista de stats (solo juegos aprobados cuentan para ranking)\ncreate or replace view player_stats as\n  select\n    p.id, p.username, p.display_name, p.avatar_emoji,\n    count(distinct mp.match_id) as matches_played,\n    count(distinct case when m.winner_id = p.id and g.approved = true then m.id end) as wins,\n    coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes\n  from players p\n  left join match_players mp on mp.player_id = p.id\n  left join matches m on m.id = mp.match_id\n  left join games g on g.id = m.game_id\n  group by p.id;\n\n-- 7. RLS\nalter table players       enable row level security;\nalter table games         enable row level security;\nalter table matches       enable row level security;\nalter table match_players enable row level security;\nalter table badges        enable row level security;\nalter table player_badges enable row level security;\n\ncreate policy "read"   on players       for select using (true);\ncreate policy "insert" on players       for insert with check (true);\ncreate policy "update" on players       for update using (true);\ncreate policy "read"   on games         for select using (true);\ncreate policy "insert" on games         for insert with check (true);\ncreate policy "update" on games         for update using (true);\ncreate policy "read"   on matches       for select using (true);\ncreate policy "insert" on matches       for insert with check (true);\ncreate policy "update" on matches       for update using (true);\ncreate policy "delete" on matches       for delete using (true);\ncreate policy "read"   on match_players for select using (true);\ncreate policy "insert" on match_players for insert with check (true);\ncreate policy "read"   on badges        for select using (true);\ncreate policy "read"   on player_badges for select using (true);\ncreate policy "insert" on player_badges for insert with check (true);\n\n-- 8. Seed: catalogo inicial de El Dragon\ninsert into games (name, min_players, max_players, avg_duration, category) values\n  (\'Catan\',          3, 4, 90, \'estrategia\'),\n  (\'Carcassonne\',    2, 5, 45, \'familiar\'),\n  (\'Wingspan\',       1, 5, 70, \'estrategia\'),\n  (\'Codenames\',      4, 8, 20, \'party\'),\n  (\'Azul\',           2, 4, 35, \'familiar\'),\n  (\'7 Wonders Duel\', 2, 2, 30, \'estrategia\'),\n  (\'Dixit\',          3, 6, 30, \'party\'),\n  (\'Splendor\',       2, 4, 30, \'estrategia\'),\n  (\'Harmonies\',      2, 4, 35, \'familiar\'),\n  (\'Orleans\',        2, 4, 90, \'estrategia\'),\n  (\'Spy Connection\', 2, 4, 45, \'familiar\'),\n  (\'Feed the Kraken\',5, 11, 60, \'party\')\non conflict (name) do nothing;\n';
+var SCHEMA_SQL='-- ════════════════════════════════════════════════════════════════\n--  EL DRAGON BG&G — Esquema Supabase\n--  Cafeteria de juegos de mesa - Registro de partidas\n-- ════════════════════════════════════════════════════════════════\n--  Ejecuta en: Supabase → SQL Editor → New query\n-- ════════════════════════════════════════════════════════════════\n\n-- 1. Jugadores\ncreate table if not exists players (\n  id           uuid primary key default gen_random_uuid(),\n  username     text unique not null,\n  display_name text,\n  avatar_emoji text default \'🐉\',\n  pin_hash     text,\n  created_at   timestamptz default now()\n);\n\n-- 2. Catalogo de juegos\ncreate table if not exists games (\n  id            uuid primary key default gen_random_uuid(),\n  name          text unique not null,\n  min_players   int default 2,\n  max_players   int default 4,\n  avg_duration  int,\n  category      text,\n  available     boolean default true,\n  approved      boolean default true,\n  added_by      uuid references players(id),\n  created_at    timestamptz default now()\n);\n\n-- 3. Partidas\ncreate table if not exists matches (\n  id           uuid primary key default gen_random_uuid(),\n  game_id      uuid not null references games(id),\n  played_at    timestamptz not null default now(),\n  duration_min int,\n  difficulty   int check (difficulty between 1 and 5),\n  winner_id    uuid references players(id),\n  notes        text,\n  created_by   uuid references players(id),\n  approved     boolean default false,\n  created_at   timestamptz default now()\n);\n\n-- 4. Participantes\ncreate table if not exists match_players (\n  match_id  uuid references matches(id) on delete cascade,\n  player_id uuid references players(id),\n  score     int,\n  primary key (match_id, player_id)\n);\n\n-- 5. Logros\ncreate table if not exists badges (\n  id text primary key, name text not null, description text, emoji text default \'🏅\'\n);\ncreate table if not exists player_badges (\n  player_id uuid references players(id) on delete cascade,\n  badge_id  text references badges(id),\n  earned_at timestamptz default now(),\n  primary key (player_id, badge_id)\n);\n\ninsert into badges (id, name, description, emoji) values\n  (\'first_match\', \'Primera partida\',  \'Tu primera cronica\',                      \'🎲\'),\n  (\'first_win\',   \'Primera victoria\', \'Tu primer triunfo en la liga\',            \'🏆\'),\n  (\'marathon\',    \'Maratonista\',      \'Una partida de mas de 3 horas\',           \'⏰\'),\n  (\'explorer\',    \'Explorador\',       \'Probaste 10 juegos diferentes\',           \'🧭\'),\n  (\'regular\',     \'Habitual\',         \'25 partidas registradas\',                 \'☕\'),\n  (\'strategist\',  \'Estratega\',        \'5 victorias en juegos de estrategia\',     \'♟️\')\non conflict (id) do nothing;\n\n-- 6. Vista de stats (solo juegos aprobados cuentan para ranking)\ncreate or replace view player_stats as\n  select\n    p.id, p.username, p.display_name, p.avatar_emoji,\n    count(distinct mp.match_id) as matches_played,\n    count(distinct case when m.winner_id = p.id and g.approved = true and m.approved = true then m.id end) as wins,\n    coalesce(sum(m.duration_min) filter (where mp.player_id = p.id), 0) as total_minutes\n  from players p\n  left join match_players mp on mp.player_id = p.id\n  left join matches m on m.id = mp.match_id\n  left join games g on g.id = m.game_id\n  group by p.id;\n\n-- 7. RLS\nalter table players       enable row level security;\nalter table games         enable row level security;\nalter table matches       enable row level security;\nalter table match_players enable row level security;\nalter table badges        enable row level security;\nalter table player_badges enable row level security;\n\ncreate policy "read"   on players       for select using (true);\ncreate policy "insert" on players       for insert with check (true);\ncreate policy "update" on players       for update using (true);\ncreate policy "read"   on games         for select using (true);\ncreate policy "insert" on games         for insert with check (true);\ncreate policy "update" on games         for update using (true);\ncreate policy "read"   on matches       for select using (true);\ncreate policy "insert" on matches       for insert with check (true);\ncreate policy "update" on matches       for update using (true);\ncreate policy "delete" on matches       for delete using (true);\ncreate policy "read"   on match_players for select using (true);\ncreate policy "insert" on match_players for insert with check (true);\ncreate policy "read"   on badges        for select using (true);\ncreate policy "read"   on player_badges for select using (true);\ncreate policy "insert" on player_badges for insert with check (true);\n\n-- 8. Seed: catalogo inicial de El Dragon\ninsert into games (name, min_players, max_players, avg_duration, category) values\n  (\'Catan\',          3, 4, 90, \'estrategia\'),\n  (\'Carcassonne\',    2, 5, 45, \'familiar\'),\n  (\'Wingspan\',       1, 5, 70, \'estrategia\'),\n  (\'Codenames\',      4, 8, 20, \'party\'),\n  (\'Azul\',           2, 4, 35, \'familiar\'),\n  (\'7 Wonders Duel\', 2, 2, 30, \'estrategia\'),\n  (\'Dixit\',          3, 6, 30, \'party\'),\n  (\'Splendor\',       2, 4, 30, \'estrategia\'),\n  (\'Harmonies\',      2, 4, 35, \'familiar\'),\n  (\'Orleans\',        2, 4, 90, \'estrategia\'),\n  (\'Spy Connection\', 2, 4, 45, \'familiar\'),\n  (\'Feed the Kraken\',5, 11, 60, \'party\')\non conflict (name) do nothing;\n';
 
 function SupabaseConfig({theme,onChanged,onClose}){
   var stored=getStoredCreds();
@@ -1245,7 +1319,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(e(App));
     try{
       var b=document.createElement('div');
       b.className='app-version-badge';
-      b.textContent='v2026.05.05.5';
+      b.textContent='v2026.05.05.6';
       document.body.appendChild(b);
     }catch(err){}
   });
