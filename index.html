@@ -868,7 +868,7 @@ function MatchesList({theme,matches,onRefresh,onError}){
 
   return e('div',null,
     e('div',{style:{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'flex-end',marginBottom:20,gap:12}},
-      e('h1',{style:Object.assign({},sTitle(theme,36))},'Todas las partidas'),
+      e('h1',{style:{fontFamily:T.display,fontSize:36,fontWeight:500,fontStyle:'italic',margin:0,letterSpacing:-.8}},'Todas las partidas'),
       pendingCount>0&&e('div',{style:{fontFamily:T.sans,fontSize:12,fontWeight:700,color:theme.fire}},
         '\u26A0 '+pendingCount+' pendiente'+(pendingCount>1?'s':'')),
     ),
