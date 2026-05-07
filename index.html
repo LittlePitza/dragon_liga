@@ -969,7 +969,8 @@ function GamesInventory({theme,games,onRefresh}){
   );
 }
 
-function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
+function Dashboard({theme,players,matches,games,onLogout,onRefresh,onError}){
+  if(!onError)onError=function(msg){alert(msg)};
   var _v=useState('overview'),view=_v[0],setView=_v[1];
   var _mob=useState(false),sideOpen=_mob[0],setSideOpen=_mob[1];
   var totalMatches=matches.length;
