@@ -1046,6 +1046,7 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
     e('div',{style:{position:'relative',zIndex:1}},sidebar),
   ):null;
 
+  var pendingMatches=matches.filter(function(m){return m.match_approved===false}).length;
   var mainContent=e('main',{style:{flex:1,overflowY:'auto',padding:'32px 36px',minWidth:0},className:'dash-main'},
     view==='overview'&&e('div',null,
       e('div',{style:{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'flex-end',marginBottom:28,gap:12}},
@@ -1056,7 +1057,6 @@ function Dashboard({theme,players,matches,games,onLogout,onRefresh}){
         ),
       ),
       e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:24}},
-        var pendingMatches=matches.filter(function(m){return m.match_approved===false}).length;
         [['Partidas',totalMatches],['Pendientes',pendingMatches],['Jugadores',players.length],['Horas',Math.round(totalMinutes/60)]].map(function(arr){
           return e('div',{key:arr[0],style:{background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:20,position:'relative',overflow:'hidden'}},
             e('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.2,color:theme.inkMuted}},arr[0]),
