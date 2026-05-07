@@ -475,6 +475,7 @@ function MobileLogin({theme,onLogin}){
 // ─── Home ───────────────────────────────────────────────────
 function MobileHome({theme,user,matches,players,onNew,onProfile,onCatalog,onRanking,onMatch}){
   var me=players.find(function(p){return p.username===user.username});
+  var publicMatches=matches.filter(function(m){return m.match_approved!==false});
   return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
     e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
       e(WordMark,{theme:theme}),
@@ -505,9 +506,9 @@ function MobileHome({theme,user,matches,players,onNew,onProfile,onCatalog,onRank
       e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}},
         e('div',{style:{fontFamily:T.sans,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,color:theme.inkMuted}},'Cronicas recientes'),
       ),
-      matches.length===0&&e('div',{style:{padding:'32px 20px',textAlign:'center',background:theme.surface,border:'1px dashed '+theme.line,borderRadius:6,fontFamily:T.sans,fontSize:13,color:theme.inkMuted}},
+      publicMatches.length===0&&e('div',{style:{padding:'32px 20px',textAlign:'center',background:theme.surface,border:'1px dashed '+theme.line,borderRadius:6,fontFamily:T.sans,fontSize:13,color:theme.inkMuted}},
         'Aun no hay partidas. Se la primera en escribir la historia.'),
-      matches.slice(0,8).map(function(m){
+      publicMatches.slice(0,8).map(function(m){
         return e('button',{key:m.id,onClick:function(){onMatch(m)},style:{display:'block',width:'100%',textAlign:'left',background:theme.surface,border:'1px solid '+theme.lineSoft,borderRadius:6,padding:'14px 16px',marginBottom:8,cursor:'pointer'}},
           e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline'}},
             e('div',{style:{fontFamily:T.display,fontSize:18,color:theme.ink,fontStyle:'italic',fontWeight:500}},m.game_name),
@@ -515,8 +516,7 @@ function MobileHome({theme,user,matches,players,onNew,onProfile,onCatalog,onRank
           ),
           e('div',{style:{fontFamily:T.sans,fontSize:12,color:theme.inkSoft,marginTop:4,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
             e('span',null,(m.players||[]).join(' \u00B7 ')),
-            m.match_approved===false&&e(Pill,{theme:theme,tone:'fire'},'pendiente'),
-            m.match_approved!==false&&m.winner&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner),
+            m.winner&&e(Pill,{theme:theme,tone:'gold'},'\u{1F3C6} '+m.winner),
           ),
         );
       }),
@@ -707,12 +707,16 @@ function MobileCatalog({theme,games,onBack}){
 
 // ─── Ranking ────────────────────────────────────────────────
 function MobileRanking({theme,players,matches,onBack}){
-  // Calcular wins solo de juegos aprobados
+  // Calcular wins y partidas solo de partidas aprobadas
   var approvedWins={};
+  var approvedPlayed={};
   (matches||[]).forEach(function(m){
-    if(m.game_approved!==false&&m.match_approved!==false&&m.winner){approvedWins[m.winner]=(approvedWins[m.winner]||0)+1}
+    if(m.game_approved!==false&&m.match_approved!==false){
+      (m.players||[]).forEach(function(p){approvedPlayed[p]=(approvedPlayed[p]||0)+1});
+      if(m.winner){approvedWins[m.winner]=(approvedWins[m.winner]||0)+1}
+    }
   });
-  var ranked=players.map(function(p){return Object.assign({},p,{ranked_wins:approvedWins[p.username]||0})});
+  var ranked=players.map(function(p){return Object.assign({},p,{ranked_wins:approvedWins[p.username]||0,ranked_played:approvedPlayed[p.username]||0})});
   ranked.sort(function(a,b){return b.ranked_wins-a.ranked_wins});
   return e('div',{style:{flex:1,display:'flex',flexDirection:'column',background:theme.bg,overflow:'hidden'}},
     e('div',{style:{padding:'16px 20px 12px',display:'flex',alignItems:'center',gap:12,borderBottom:'1px solid '+theme.lineSoft,background:theme.surface}},
@@ -728,7 +732,7 @@ function MobileRanking({theme,players,matches,onBack}){
           e('div',{style:{width:32,height:32,borderRadius:'50%',background:theme.chip,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}},p.avatar_emoji),
           e('div',null,
             e('div',{style:{fontFamily:T.display,fontSize:17,fontStyle:'italic',color:theme.ink,fontWeight:500}},p.display_name||p.username),
-            e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:1}},p.matches_played+' partidas'),
+            e('div',{style:{fontFamily:T.sans,fontSize:11,color:theme.inkMuted,marginTop:1}},p.ranked_played+' partidas'),
           ),
           e('div',{style:{fontFamily:T.display,fontSize:24,fontWeight:500,fontStyle:'italic',color:i===0?theme.gold:theme.accent,letterSpacing:-.5}},p.ranked_wins),
         );
@@ -744,7 +748,7 @@ function MobileRanking({theme,players,matches,onBack}){
 // ─── Profile ────────────────────────────────────────────────
 function MobileProfile({theme,user,players,badges,matches,onBack,onLogout}){
   var me=players.find(function(p){return p.username===user.username})||{matches_played:0,wins:0,total_minutes:0};
-  var myMatches=matches.filter(function(m){return(m.players||[]).includes(user.username)});
+  var myMatches=matches.filter(function(m){return m.match_approved!==false&&(m.players||[]).includes(user.username)});
   var friendsMap={};
   myMatches.forEach(function(m){(m.players||[]).forEach(function(p){if(p!==user.username)friendsMap[p]=(friendsMap[p]||0)+1})});
   var friends=Object.entries(friendsMap).sort(function(a,b){return b[1]-a[1]}).slice(0,4);
